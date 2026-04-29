@@ -25,6 +25,81 @@ Affected packages: `imio.pm.ws`, `imio.pm.wsclient`, `ZSI`, `z3c.soap`,
 
 ---
 
+## CKEditor stack (PR 3) — REIMPLEMENT AS STOCK TINYMCE IN STAGE D
+
+**Provider packages**
+
+- `collective.ckeditor` (CKEditor 4 integration for Plone — EOL)
+- `collective.plonefinder`, `demjson`, `ua-parser` (CKEditor-only
+  transitive deps)
+
+> Note: `collective.quickupload` is *kept* — `imio.annex` still uses it
+> for its annex upload widget.
+
+**What it did**
+
+Rich-text editing for every meeting/item/advice text field. Custom
+PMRichTextWidget added quick-edit / AjaxSave on top of the stock
+CKEditor; PMCKFinder + PMAjaxSave wired CKEditor's file picker and
+ajaxsave hooks into PM-specific save logic. A custom in-tree plugin
+(`src/Products/PloneMeeting/ckeditor/imagerotate/`) added image
+rotation buttons.
+
+**Reimplement in Stage D**
+
+Stock TinyMCE on Plone 6 — no parity port. The custom plugin
+(image-rotate) is *not* coming back. The widget hooks (quick-edit,
+ajax-save) need to be re-wired against TinyMCE if the UX is still
+desired. The custom menu styles configured in `_configureCKeditor`
+(highlight colors, font sizes, table layouts, page-break) translate
+naturally to a TinyMCE `style_formats` config — use the commented
+block as the source of truth for that mapping.
+
+**Hard-deleted**
+
+- `src/Products.PloneMeeting/src/Products/PloneMeeting/ckeditor/`
+  (custom plugin subdirectory + `imagerotate/` plugin) — per the
+  standing decision, no parity port.
+
+**Commented call-sites in `Products.PloneMeeting`**
+
+| File | What |
+|---|---|
+| `src/Products.PloneMeeting/setup.py` | `collective.ckeditor` install_requires |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/configure.zcml` | `<include package="collective.ckeditor" />`, `<include package=".ckeditor" />` |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/browser/configure.zcml` | `cke-save` overrides for `IMeetingContent` / `IMeetingAdvice`; `plone_ckfinder` browser:page |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/browser/overrides.py` | `CKFinder` / `AjaxSave` imports, `PMCKFinder`, `PMAjaxSave` classes |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/widgets/pm_richtext.py` | `Z3CFormWidgetSettings` import, `js_on_click` / `js_save` / `js_save_and_exit` / `js_cancel` bodies, `PMZ3CFormWidgetSettings` class |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/overrides.zcml` | `PMZ3CFormWidgetSettings` adapter |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/setuphandlers.py` | `configure_ckeditor` import, `_configureCKeditor` body, `_configureQuickupload` function, Scayt-removal block in `_installWebspellchecker`, call sites in `postInstall` |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/config.py` | `CKEDITOR_MENUSTYLES_CUSTOMIZED_MSG` constant |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/profiles/default/metadata.xml` | `profile-collective.ckeditor:default` dependency |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/profiles/default/jsregistry.xml` | `ckeditor_vars.js`, `ckeditor.js`, `ckeditor_plone.js` registrations (and `iframeresizer` insert-after rebased) |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/profiles/default/cssregistry.xml` | `imioapps_ckeditor_moonolisa.css` (and `batch_actions.css` insert-after rebased) |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/profiles/default/propertiestool.xml` | `ckeditor_properties` property sheet |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/tests/testViews.py` | `test_pm_RichTextWidget` |
+
+**Migrations left untouched**
+
+`migrations/migrate_to_4110.py`, `migrations/migrate_to_4200.py`,
+`migrations/migrate_to_4201.py`, and `migrations/__init__.py` still
+contain CKEditor-specific upgrade-step code (`addCKEditorStyle`,
+Scayt removal, page-break style). These are historical: they target
+profile versions ≤ 4201 and won't fire on a fresh install of profile
+4217+. Leave them in place; they're inert unless a downstream
+reinstalls from an old profile version. If that scenario actually
+needs to be supported on a CKEditor-less codebase, guard each
+`portal_properties.ckeditor_properties` access with `base_hasattr`.
+
+**Commented buildout pins**
+
+- `versions.cfg`: `collective.ckeditor`, `demjson`,
+  `collective.plonefinder`, `ua-parser`
+- `sources.cfg`: `collective.ckeditor`
+- `dev.cfg`: already commented
+
+---
+
 ## AMQP / scan_id integration (PR 2) — REIMPLEMENT IN STAGE D
 
 **Provider packages**

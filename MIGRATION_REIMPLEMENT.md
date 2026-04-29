@@ -240,6 +240,47 @@ annex via the "Insert barcode" action.
 
 ---
 
+## communesplone.layout (PR 5) — REIMPLEMENT IN STAGE D *if needed*
+
+**Provider package**
+
+- `communesplone.layout` (iMio theme overlay — abandoned, no Py3
+  release)
+
+**What it did**
+
+Provided ZCML-loaded translations, viewlets, and CSS overrides for
+the "communes" municipal-portal look-and-feel. Plain ZCML inclusion;
+zero direct Python imports inside the codebase.
+
+**Reimplement in Stage D *if needed***
+
+Audit found no in-tree Python references to `communesplone.layout`.
+If a downstream visual regression appears after this drop (missing
+viewlet, CSS, profile action), inline the specific feature into
+either `plonemeeting.portal` or `plonetheme.imioapps`. Otherwise,
+drop the package permanently.
+
+**Commented call-sites in `Products.PloneMeeting`**
+
+| File | What |
+|---|---|
+| `src/Products.PloneMeeting/setup.py` | install_requires entry |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/configure.zcml` | `<include package="communesplone.layout" />` |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/profiles/default/metadata.xml` | `profile-communesplone.layout:default` |
+
+**Commented buildout pins**
+
+- `versions.cfg`: `communesplone.layout`
+- `sources.cfg`: `communesplone.layout` source line
+
+> Note: `collective.captcha` and `skimpyGimpy` are listed in
+> `versions.cfg` as transitive deps of `communesplone.layout`. They
+> are handled in PR 6 (debug/unused leaves) along with the other
+> dev-only inventory.
+
+---
+
 ## How to use this file
 
 When starting Stage D, grep the codebase for the marker comment to

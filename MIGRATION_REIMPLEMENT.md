@@ -25,6 +25,83 @@ Affected packages: `imio.pm.ws`, `imio.pm.wsclient`, `ZSI`, `z3c.soap`,
 
 ---
 
+## Async preview generation + cron4plone (PR 4) — REIMPLEMENT IN STAGE D
+
+**Provider packages**
+
+- `plone.app.async`, `zc.async`, `zc.twist`, `zc.dict`, `zc.queue`,
+  `Twisted` 15.x, `zope.bforest`, `uuid` (zc.async stack)
+- `Products.cron4plone` (cron-tab-style scheduler driven by an
+  internal `<clock-server>` ticking `@@cron-tick`)
+
+**What it did**
+
+Two related concerns:
+
+1. **Async preview generation.** `collective.documentviewer.async.queueJob`
+   queued a `Converter(annex)()` invocation onto a `zc.async` queue,
+   serviced by a dedicated `instance-async` worker. The patched
+   `JobRunner.queue_it` in `imio.annex/patch.py` fired a
+   `ConversionStartedEvent` so the UI could reflect "converting…".
+2. **Scheduled tasks.** `Products.cron4plone` consulted a cron-tab
+   (`@@cron-tick` view, hit hourly by a `<clock-server>` directive in
+   `base.cfg`) and, at 01:45 daily, dispatched `@@pm-night-tasks`
+   (which calls `@@update-delay-aware-advices` and
+   `@@update-items-to-reindex`).
+
+**Reimplement in Stage D**
+
+- **Scheduled tasks** — we will *not* use `<clock-server>` in P6.
+  Roll our own scheduler (system cron / Kubernetes CronJob / Celery
+  beat / whatever fits the deployment). The view `@@pm-night-tasks`
+  is preserved in `Products.PloneMeeting/browser/views.py` and
+  remains callable; it just needs an external trigger.
+- **Async preview generation** — conversion is currently inline
+  (slower UX on annex upload). Stage D should reattach it to whatever
+  background-task model we adopt. The `JobRunner` event hook in
+  `imio.annex/patch.py` is preserved as a comment for reactivation.
+
+**Commented call-sites in `Products.PloneMeeting`**
+
+| File | What |
+|---|---|
+| `src/Products.PloneMeeting/setup.py` | `Products.cron4plone` install_requires |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/configure.zcml` | `<include package="Products.cron4plone" />` |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/profiles/default/metadata.xml` | `profile-Products.cron4plone:default` |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/setuphandlers.py` | `ICronConfiguration` import + cron-tab registration block |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/ToolPloneMeeting.py` | `queueJob` import; `convertAnnexes` now calls `Converter(annex)()` directly |
+| `src/Products.PloneMeeting/src/Products/PloneMeeting/events.py` | `queueJob` import; `_annexToPrintChanged` now calls `Converter(annex)()` directly |
+
+**Commented call-sites in `imio.annex`**
+
+| File | What |
+|---|---|
+| `src/imio.annex/src/imio/annex/patch.py` | `JobRunner` import, `jobrunner_queue_it` function (event-emitting wrapper around `JobRunner.queue_it`) |
+| `src/imio.annex/src/imio/annex/configure.zcml` | `<monkey:patch>` for `JobRunner.queue_it` |
+
+**Commented buildout pins**
+
+- `versions.cfg`: `plone.app.async`, `zc.async`, `zc.twist`, `zc.dict`,
+  `zc.queue`, `Twisted` 15.x, `zope.bforest`, `uuid` (transitive),
+  `zc.ngi 2.0.1` (the 2.1.0 pin required by `zc.monitor` is kept),
+  `Products.cron4plone`
+
+**Commented runtime parts**
+
+- `base.cfg`: `instance-async` part declaration, `plone.app.async` egg
+  + ZCML in `instance1`, `<clock-server>` for `@@cron-tick`,
+  `%include zope_add_async.conf`, `%include zeo_async.conf`
+- `port.cfg`: `instance-async-http`, `instance-async-monitor`
+
+**Dead helper left in place** (no callers)
+
+- `Products.CPUtils/src/Products/CPUtils/Extensions/utils.py` —
+  `clear_completed_async_jobs` uses lazy imports of `plone.app.async`
+  / `zc.async`; nothing in the codebase calls it. Will be cleaned up
+  in PR 6 / Stage D.
+
+---
+
 ## CKEditor stack (PR 3) — REIMPLEMENT AS STOCK TINYMCE IN STAGE D
 
 **Provider packages**

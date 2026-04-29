@@ -281,59 +281,6 @@ drop the package permanently.
 
 ---
 
-## Debug / dev-only leaves (PR 6) — DROP, REIMPLEMENT *if needed* IN STAGE D
-
-Pure dependency-removal cleanup; no in-tree code references for any
-of these. Each entry is commented in the buildout (rather than
-deleted) so a quick uncomment reactivates it.
-
-**Dropped**
-
-- `Products.DocFinderTab` — debug helper exposing the introspection
-  tab. No Py3 release. Re-add a similar dev tool in Stage D if
-  needed.
-- `Products.DCWorkflowGraph` — workflow-graph visualisation. Dev
-  helper.
-- `collective.profiler` — dev profiler integration. The
-  `profiling.zcml` block was already commented in-tree; only the
-  egg/version pins go.
-- `collective.usernamelogger` — login event logger. Reintroduce as a
-  tiny PAS plugin in Stage D if still wanted.
-- `archetypes.schematuning` — AT-only performance overlay; irrelevant
-  once `MeetingItem`/`MeetingConfig` go DX (Stage B/C).
-- `collective.captcha`, `skimpyGimpy` — transitive deps of the
-  already-dropped `communesplone.layout` (PR 5).
-
-**Held — keep on the 4.3 line for now**
-
-- `Products.PasswordStrength` — still wired in (`configure.zcml`,
-  metadata profile, testing layer). Plone 6 ships its own password
-  policy; revisit when the Stage D site config is cut.
-- `imio.webspellchecker` — still wired in via setuphandlers
-  (WebSpellChecker SaaS integration, editor-agnostic). Revisit in
-  Stage D once we know whether the deployment still pays for the
-  service.
-- `Products.PrintingMailHost` — keep in `dev.cfg` only; harmless dev
-  helper.
-- `repoze.catalog` — transitive of `collective.documentviewer` which
-  we keep through Stage A.
-
-**Commented call-sites in `Products.PloneMeeting`**
-
-| File | What |
-|---|---|
-| `src/Products.PloneMeeting/setup.py` | `archetypes.schematuning`, `collective.usernamelogger` install_requires entries |
-
-**Commented buildout pins**
-
-- `versions.cfg`: `Products.DocFinderTab`, `archetypes.schematuning`,
-  `collective.usernamelogger`, `collective.captcha`, `skimpyGimpy`
-- `versions-dev.cfg`: `Products.DCWorkflowGraph`, `collective.profiler`
-- `dev.cfg [instance1] eggs +=`: `collective.profiler`, `Products.DCWorkflowGraph`
-- `base.cfg [instance1] eggs =`: `Products.DocFinderTab`
-
----
-
 ## How to use this file
 
 When starting Stage D, grep the codebase for the marker comment to

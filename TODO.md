@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.3** — Package rename (`Products.PloneMeeting` → `plonemeeting.portal`).
+- [ ] **C.3** — Package rename (`Products.PloneMeeting` → `plonemeeting.core`).
 
 ---
 
@@ -129,7 +129,7 @@ caught by static analysis, runtime validation happens in Stage D.
 
 ### C.3 — Package rename
 
-- [ ] `Products.PloneMeeting` → **`plonemeeting.portal`** — full
+- [ ] `Products.PloneMeeting` → **`plonemeeting.core`** — full
       filesystem move, namespace declaration, every Python import,
       every ZCML directive, every GenericSetup XML reference, every
       page template reference. One focused PR with a re-runnable
@@ -145,7 +145,7 @@ caught by static analysis, runtime validation happens in Stage D.
 ### C.4 — Pre-cutover freeze
 
 - [ ] `pylint --py3k` zero errors on every package in `src/`.
-- [ ] Tag pre-cutover release of `plonemeeting.portal` and
+- [ ] Tag pre-cutover release of `plonemeeting.core` and
       `plonemeeting.communes` so Stage D can be reproducibly built.
 - [ ] Snapshot a sanitized prod ZODB + blobs (`make copy-data`) —
       the validation harness for Stage D.
@@ -161,7 +161,7 @@ analysis from Stage C meets reality here — expect a fix-up sprint.
 
 - [ ] New `requirements/` pinned to Plone 6.1.x + Python 3.12.
 - [ ] Use `cookiecutter-plone` (or equivalent) as layout reference;
-      keep `plonemeeting.portal` and `plonemeeting.communes` as src
+      keep `plonemeeting.core` and `plonemeeting.communes` as src
       checkouts via `mxdev`.
 - [ ] Plone 6.1 **Classic** theme. The 6 Classic UI is the only
       frontend we ship.
@@ -196,7 +196,7 @@ analysis from Stage C meets reality here — expect a fix-up sprint.
 
 - [ ] (a) P6 fork of `imio.dashboard` exists and works → bump pin.
       OR (b) inline the remaining `imio.dashboard` features directly
-      into `plonemeeting.portal`. Single biggest schedule risk
+      into `plonemeeting.core`. Single biggest schedule risk
       inside Stage D.
 
 ### D.4 — Reactivate Stage-A "comment, don't delete" features
@@ -230,7 +230,7 @@ stack:
 
 ### D.5 — Iterate until tests pass
 
-- [ ] `plonemeeting.portal` test suite green on Plone 6.1 / Py 3.12.
+- [ ] `plonemeeting.core` test suite green on Plone 6.1 / Py 3.12.
       Expect non-trivial fix-up: lxml/BeautifulSoup string-vs-bytes
       drift, `DateTime` vs `datetime` boundaries, catalog query
       result type changes, browser-layer registration changes,
@@ -274,7 +274,7 @@ working against the sanitized prod copy archived end of Stage C.
 
 ## Done definition
 
-- [ ] One iMio customer runs `plonemeeting.portal` +
+- [ ] One iMio customer runs `plonemeeting.core` +
       `plonemeeting.communes` on Plone 6.1 Classic / Py 3.12 in
       production.
 - [ ] CI matrix is green on Py 3.12 / Plone 6.1 only (4.3 / Py 2.7

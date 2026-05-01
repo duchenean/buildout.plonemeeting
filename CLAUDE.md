@@ -53,15 +53,15 @@ The test-runner part name depends on the active profile (`testmc` for communes, 
 
 ## Source layout (`src/`)
 
-- `Products.PloneMeeting/` — core product. Most schema/workflow/view code lives here.
-- `Products.Meeting<Profile>/` — profile-specific overrides and configurations.
+- `plonemeeting.core/` — core product (renamed from `Products.PloneMeeting`). Most schema/workflow/view code lives here.
+- `Products.MeetingCommunes/` — profile-specific overrides and configurations for communes.
 - `imio.*`, `collective.*`, `plone.restapi`, `plonemeeting.restapi`, `appy`, `ftw.labels` — auto-checked-out dependencies.
 
 When bumping a release, update both `versions.cfg` and `versions-dev.cfg` so dev and prod stay aligned.
 
 ## Active migration
 
-There is an in-progress **Archetypes → Dexterity** migration of `MeetingConfig` in `Products.PloneMeeting`. See `MIGRATION_SUMMARY.md` at the repo root for the authoritative state (field renames, fieldsets, registration). When working on this, prefer the `plone-migrate-AT-to-DX` skill and treat `MIGRATION_SUMMARY.md` as the source of truth.
+There is an in-progress **Plone 4 → Plone 6** migration. The core package has been renamed from `Products.PloneMeeting` to `plonemeeting.core`. See `MIGRATION_SUMMARY.md` at the repo root for the authoritative state (field renames, fieldsets, registration). When working on this, prefer the `plone-migrate-AT-to-DX` skill and treat `MIGRATION_SUMMARY.md` as the source of truth.
 
 ## Conventions
 

@@ -5,14 +5,14 @@
 > dependency footprint. UI/UX overhauls and redesigns are explicitly **out of scope**.
 >
 > **Renames.** As part of the migration:
-> - `Products.PloneMeeting` → **`plonemeeting.portal`** (Python distribution name)
+> - `Products.PloneMeeting` → **`plonemeeting.core`** (Python distribution name)
 > - `Products.MeetingCommunes` → **`plonemeeting.communes`**
 >
 > **Forks used for the migration buildout.** All migration work happens against the iMio
 > forks already wired in `sources.cfg`:
 > - `git@github.com:duchenean/plonemeeting.core.git` — repo holding the migrated
->   `plonemeeting.portal` package (note the repo-vs-package asymmetry: the **repo** is
->   `plonemeeting.core`, the **distribution name** inside it is `plonemeeting.portal`)
+>   `plonemeeting.core` package (note the repo-vs-package asymmetry: the **repo** is
+>   `plonemeeting.core`, the **distribution name** inside it is `plonemeeting.core`)
 > - `git@github.com:duchenean/plonemeeting.communes.git` — repo + package both
 >   `plonemeeting.communes`
 >
@@ -69,7 +69,7 @@ These are easy wins — features already disabled, deprecated, or covered elsewh
 | `collective.usernamelogger` | Trivial logger | Replace with simple PAS plugin or drop |
 | `Products.PrintingMailHost` | Local-only debug mail | Keep dev-only |
 | `collective.captcha`, `skimpyGimpy` (via `communesplone.layout`) | Unused on iA.Delib? | Verify, drop |
-| `communesplone.layout` | **Abandoned, no Py3 release** | Identify which features are actually used; port the handful that matter directly into `plonemeeting.portal` |
+| `communesplone.layout` | **Abandoned, no Py3 release** | Identify which features are actually used; port the handful that matter directly into `plonemeeting.core` |
 | `collective.documentviewer`, `repoze.catalog` | Document preview backend; unclear current usage | Audit; drop if unused |
 | `Products.PasswordStrength` | Plone 6 ships its own password policy | Drop, configure native policy |
 | `imio.webspellchecker` | WebSpellChecker integration; verify still needed | Drop if unused |
@@ -82,8 +82,8 @@ These are easy wins — features already disabled, deprecated, or covered elsewh
 | `collective.ckeditor` (CKEditor 4) | **TinyMCE** (Plone 6 default) | Major content-editing change; document for end users; CKEditor 4 is EOL anyway |
 | `Products.DataGridField` (AT) | `collective.z3cform.datagridfield` | Done as part of Stage B (DX migration of MeetingItem/MeetingConfig) |
 | `archetypes.referencebrowserwidget` | `plone.app.relationfield` + `plone.app.contenttypes` widgets | Same |
-| `collective.compoundcriterion` (❌ no Py3 release) | Inline equivalent inside `plonemeeting.portal` (small package, ~few hundred LOC) | Vendor or rewrite |
-| `imio.dashboard` (❌ Py2-only, tightly coupled to old eeafaceted) | Either: port to P6 ourselves, or fold into `plonemeeting.portal` | Hard call — see §3 |
+| `collective.compoundcriterion` (❌ no Py3 release) | Inline equivalent inside `plonemeeting.core` (small package, ~few hundred LOC) | Vendor or rewrite |
+| `imio.dashboard` (❌ Py2-only, tightly coupled to old eeafaceted) | Either: port to P6 ourselves, or fold into `plonemeeting.core` | Hard call — see §3 |
 
 ### 1.3 Migrate / bump (Stage C)
 
@@ -151,7 +151,7 @@ that already cleanly remove dead code paths. Still on Plone 4.3 / Py 2.7.
 
 5. **Drop `communesplone.layout`**
    - Identify the (likely small) set of features still in use — viewlets, CSS, registrations
-   - Inline the necessary parts into `plonemeeting.portal` (Stage C) or into `plonetheme.imioapps`
+   - Inline the necessary parts into `plonemeeting.core` (Stage C) or into `plonetheme.imioapps`
    - **Acceptance**: visual diff acceptable; no missing CSS/JS in dashboards
 
 6. **Tag a release**: `4.3.x` final cut with reduced footprint; this is what we'll dual-maintain
@@ -212,7 +212,7 @@ away entirely.
   and other contained items continue to live "inside" the tool at the same path).
 - Update every `getToolByName(self, 'portal_plonemeeting')` / `api.portal.get_tool('portal_plonemeeting')`
   call site to whatever accessor pattern we adopt — likely a small helper in
-  `plonemeeting.portal.utils` that hides the rebinding.
+  `plonemeeting.core.utils` that hides the rebinding.
 
 **Acceptance**: every reference to `portal_plonemeeting` in the codebase resolves through
 the new accessor; control-panel form lets administrators edit the registry-backed settings;
@@ -239,7 +239,7 @@ upgrades.
 
 **4.1 Python 3 readiness (static-only)**
 
-Tooling, applied to `plonemeeting.portal` (post-rename) and to all in-repo iMio packages:
+Tooling, applied to `plonemeeting.core` (post-rename) and to all in-repo iMio packages:
 
 - Run `pyupgrade --py27-plus` then `pyupgrade --py3-plus` (the latter as a *check* — surfaces
   remaining Py2-only constructs).
@@ -279,24 +279,24 @@ must change — there is no partial-rename half-state that compiles. Treat this 
 per package, with the search/replace driven by a script that's checked into the repo so it can
 be re-run on rebase.
 
-- `Products.PloneMeeting` → **`plonemeeting.portal`**:
-  - **Filesystem move**: `src/Products/PloneMeeting/*` → `src/plonemeeting/portal/*`. Delete
+- `Products.PloneMeeting` → **`plonemeeting.core`**:
+  - **Filesystem move**: `src/Products/PloneMeeting/*` → `src/plonemeeting/core/*`. Delete
     `src/Products/__init__.py` (the namespace marker) and the now-empty `Products/` directory.
-    Create `src/plonemeeting/__init__.py` and `src/plonemeeting/portal/__init__.py`.
+    Create `src/plonemeeting/__init__.py` and `src/plonemeeting/core/__init__.py`.
   - **Namespace declaration**:
-    - `setup.py`: `name='plonemeeting.portal'`, drop `namespace_packages=['Products']`,
+    - `setup.py`: `name='plonemeeting.core'`, drop `namespace_packages=['Products']`,
       add `namespace_packages=['plonemeeting']`, update `package_dir`, regenerate
       `find_packages('src')`.
     - `MANIFEST.in`: rewrite every `recursive-include Products/PloneMeeting …` to
-      `recursive-include plonemeeting/portal …`.
+      `recursive-include plonemeeting/core …`.
     - The new `plonemeeting/__init__.py` declares the namespace
       (`__import__('pkg_resources').declare_namespace(__name__)` for setuptools-style, or PEP 420
       implicit if dropping setuptools nspkg). Match the convention used by `imio.*` packages
       so all iMio namespaces line up.
   - **Every Python import** must change. This includes:
-    - `from Products.PloneMeeting...` → `from plonemeeting.portal...` (every module, every
+    - `from Products.PloneMeeting...` → `from plonemeeting.core...` (every module, every
       submodule path)
-    - `import Products.PloneMeeting...` → `import plonemeeting.portal...`
+    - `import Products.PloneMeeting...` → `import plonemeeting.core...`
     - `Products.PloneMeeting.config.PROJECTNAME` and the `PROJECTNAME` constant value
       (currently `"PloneMeeting"`) — review whether downstream callers depend on the *string*
       and update accordingly
@@ -312,7 +312,7 @@ be re-run on rebase.
     permissions) — every dotted path.
   - **GenericSetup XML**:
     - `profiles/default/metadata.xml`: profile id renames from `Products.PloneMeeting:default`
-      to `plonemeeting.portal:default`. Add the old id as an alias for one release so
+      to `plonemeeting.core:default`. Add the old id as an alias for one release so
       existing sites can still find the profile during upgrade.
     - `profiles/default/types/*.xml`: every `<property name="factory">` and `<property name="klass">`
       that references the old dotted path.
@@ -328,27 +328,27 @@ be re-run on rebase.
     `python:` expression that imports from the package.
   - **Compatibility shim** (optional, dev-convenience only): because production data
     migration uses `collective.exportimport` (§5.5), the new code never opens an old
-    pickled ZODB; a Products.PloneMeeting → plonemeeting.portal pickle-loading shim is
+    pickled ZODB; a Products.PloneMeeting → plonemeeting.core pickle-loading shim is
     therefore not required for the migration itself. A throwaway shim may still be useful
     for developers who want to point a local Plone 4.3 instance at a renamed checkout —
     keep it scoped to dev tooling.
   - **Buildout / dependency declarations**: `versions.cfg`, `versions-dev.cfg`,
     `requirements.txt`, `auto-checkout` lists in `dev.cfg`. In `sources.cfg` the `[sources]`
-    line keying off `Products.PloneMeeting` becomes `plonemeeting.portal` and points at the
+    line keying off `Products.PloneMeeting` becomes `plonemeeting.core` and points at the
     iMio fork `git@github.com:duchenean/plonemeeting.core.git` (repo name stays
     `plonemeeting.core`; only the `[sources]` key and the installed distribution name
-    change to `plonemeeting.portal`). Likewise the `Products.MeetingCommunes` source line
+    change to `plonemeeting.core`). Likewise the `Products.MeetingCommunes` source line
     becomes `plonemeeting.communes` pointing at `duchenean/plonemeeting.communes.git`.
     Update the profile `.cfg` files (`communes.cfg`, `communes-dev.cfg`, etc.) accordingly.
   - **CI**: `Jenkinsfile`, GitHub Actions workflows, `bin/test -s Products.PloneMeeting` →
-    `bin/test -s plonemeeting.portal`, the `[test]` and `[testrestapi]` parts in `dev.cfg`.
+    `bin/test -s plonemeeting.core`, the `[test]` and `[testrestapi]` parts in `dev.cfg`.
   - **Repo-level**: `setup.cfg` (flake8/isort scopes), `.coveragerc` source paths, `tox.ini` if
     present, `Makefile` targets that reference `src/Products.PloneMeeting/`.
 
 - `Products.MeetingCommunes` → **`plonemeeting.communes`**: same recipe end-to-end, smaller
   surface. Done in lockstep with the `Products.PloneMeeting` rename so there is never a state
   where one half compiles against `Products.PloneMeeting` and the other against
-  `plonemeeting.portal`.
+  `plonemeeting.core`.
 
 - The other profile packages (Charleroi, Liege, PROVHainaut, BEP, Mons, Namur, Seraing,
   Lalouviere, CPASLalouviere) follow the identical recipe, but are out of *minimal* scope.
@@ -362,7 +362,7 @@ existing Plone 4.3 sites continue running the unrenamed package until cutover.
 **4.4 Pre-cutover freeze**
 
 - Make sure `pylint --py3k` has zero errors on every package in `src/`.
-- Tag a pre-cutover release of `plonemeeting.portal` and `plonemeeting.communes` so Stage D
+- Tag a pre-cutover release of `plonemeeting.core` and `plonemeeting.communes` so Stage D
   can be reproducibly built from a known commit.
 - Snapshot a sanitized prod ZODB + blobs (`make copy-data`) — this is the validation
   harness for Stage D.
@@ -381,7 +381,7 @@ caught — that is the cost of skipping a 5.2 bridge, and the structure below as
 **5.1 Stand up a Plone 6.1 Classic skeleton**
 
 - New `requirements/` pinned to **Plone 6.1.x** + Python **3.12**.
-- Use `cookiecutter-plone` (or equivalent) as the layout reference; keep `plonemeeting.portal`
+- Use `cookiecutter-plone` (or equivalent) as the layout reference; keep `plonemeeting.core`
   and `plonemeeting.communes` as src checkouts via `mxdev`.
 - Plone 6.1 **Classic** theme. The Plone 6 Classic UI is the only frontend we ship.
 - Bring up an empty Plone 6.1 site with our two packages installed and the test profile
@@ -413,13 +413,13 @@ caught — that is the cost of skipping a 5.2 bridge, and the structure below as
 By this point one of two outcomes:
 
 - (a) a P6 fork of `imio.dashboard` exists and is usable → bump pin and move on.
-- (b) inline the remaining `imio.dashboard` features directly into `plonemeeting.portal`.
+- (b) inline the remaining `imio.dashboard` features directly into `plonemeeting.core`.
 
 This is a sizable sub-task either way and is the single biggest schedule risk inside Stage D.
 
 **5.4 Iterate until tests pass**
 
-- Get the `plonemeeting.portal` test suite green on Plone 6.1 / Py 3.12. This is where
+- Get the `plonemeeting.core` test suite green on Plone 6.1 / Py 3.12. This is where
   static-analysis-driven Py3 prep meets reality. Expect non-trivial fix-up:
   - lxml/BeautifulSoup string-vs-bytes drift
   - `DateTime` vs `datetime` boundaries
@@ -492,7 +492,7 @@ Recommended split (assuming the existing iMio team):
 
 The migration is **done** when:
 
-- [ ] One iMio customer runs `plonemeeting.portal` + `plonemeeting.communes` on Plone 6.1 Classic / Py 3.12 in production
+- [ ] One iMio customer runs `plonemeeting.core` + `plonemeeting.communes` on Plone 6.1 Classic / Py 3.12 in production
 - [ ] CI matrix is green on Py 3.12 / Plone 6.1 only (the Py 2.7 / Plone 4.3 matrix is retired)
 - [ ] No `Products.Archetypes` import remains in `src/`
 - [ ] No package in `versions.cfg` requires Python 2

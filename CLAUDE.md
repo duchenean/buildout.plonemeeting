@@ -1,6 +1,6 @@
 # buildout.pm
 
-Buildout for `Products.PloneMeeting` and profile packages (`Products.MeetingCommunes`, `MeetingCharleroi`, `MeetingLiege`, `MeetingPROVHainaut`, `MeetingBEP`, `MeetingMons`, `MeetingNamur`, `MeetingSeraing`, `MeetingLalouviere`, `MeetingCPASLalouviere`).
+Buildout for `Products.PloneMeeting` and profile packages (`plonemeeting.communes`, `MeetingCharleroi`, `MeetingLiege`, `MeetingPROVHainaut`, `MeetingBEP`, `MeetingMons`, `MeetingNamur`, `MeetingSeraing`, `MeetingLalouviere`, `MeetingCPASLalouviere`).
 
 - **Plone 4.3.20**, **Python 2.7**, ZEO + multi-instance (instance1, instance-async, instance-amqp).
 - Source packages live in `src/` (managed by `mr.developer`, see `auto-checkout` in `dev.cfg`).
@@ -54,7 +54,7 @@ The test-runner part name depends on the active profile (`testmc` for communes, 
 ## Source layout (`src/`)
 
 - `plonemeeting.core/` — core product (renamed from `Products.PloneMeeting`). Most schema/workflow/view code lives here.
-- `Products.MeetingCommunes/` — profile-specific overrides and configurations for communes.
+- `plonemeeting.communes/` — profile-specific overrides and configurations for communes.
 - `imio.*`, `collective.*`, `plone.restapi`, `plonemeeting.restapi`, `appy`, `ftw.labels` — auto-checked-out dependencies.
 
 When bumping a release, update both `versions.cfg` and `versions-dev.cfg` so dev and prod stay aligned.

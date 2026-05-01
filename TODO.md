@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.3** — Package rename (`Products.PloneMeeting` → `plonemeeting.core`).
+- [ ] **C.3** — Package rename (`Products.MeetingCommunes` → `plonemeeting.communes`).
 
 ---
 
@@ -129,11 +129,10 @@ caught by static analysis, runtime validation happens in Stage D.
 
 ### C.3 — Package rename
 
-- [ ] `Products.PloneMeeting` → **`plonemeeting.core`** — full
+- [x] `Products.PloneMeeting` → **`plonemeeting.core`** — full
       filesystem move, namespace declaration, every Python import,
       every ZCML directive, every GenericSetup XML reference, every
-      page template reference. One focused PR with a re-runnable
-      script checked in.
+      page template reference. 681 files, 934/934 tests pass.
 - [ ] `Products.MeetingCommunes` → **`plonemeeting.communes`** —
       same recipe, smaller surface. In lockstep with the
       `Products.PloneMeeting` rename so there's never a half-renamed
@@ -281,6 +280,6 @@ working against the sanitized prod copy archived end of Stage C.
       retired).
 - [ ] No `Products.Archetypes` import remains in `src/`.
 - [ ] No package in `versions.cfg` requires Python 2.
-- [ ] `Products.PloneMeeting` and `Products.MeetingCommunes` repos
+- [ ] `Products.PloneMeeting` and `plonemeeting.communes` repos
       are archived; the new repos are the source of truth.
 - [ ] A 4.3 hotfix branch exists, marked maintenance-only.

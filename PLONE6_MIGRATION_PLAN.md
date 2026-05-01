@@ -6,7 +6,7 @@
 >
 > **Renames.** As part of the migration:
 > - `Products.PloneMeeting` → **`plonemeeting.core`** (Python distribution name)
-> - `Products.MeetingCommunes` → **`plonemeeting.communes`**
+> - `plonemeeting.communes` → **`plonemeeting.communes`**
 >
 > **Forks used for the migration buildout.** All migration work happens against the iMio
 > forks already wired in `sources.cfg`:
@@ -16,7 +16,7 @@
 > - `git@github.com:duchenean/plonemeeting.communes.git` — repo + package both
 >   `plonemeeting.communes`
 >
-> The canonical `IMIO/Products.PloneMeeting` and `IMIO/Products.MeetingCommunes` repos remain
+> The canonical `IMIO/Products.PloneMeeting` and `IMIO/plonemeeting.communes` repos remain
 > the source of truth for the Plone 4.3 line and receive only hotfixes during the migration.
 >
 > **Source-of-truth references**
@@ -112,7 +112,7 @@ and are either ready or "almost ready" — verify each `setup.py` and create an 
 
 ### 1.4 Killer packages
 
-`Products.PloneMeeting` itself is renamed and ported (§4–5). `Products.MeetingCommunes`
+`Products.PloneMeeting` itself is renamed and ported (§4–5). `plonemeeting.communes`
 (and the other profile packages — Charleroi, Liege, PROVHainaut, BEP, Mons, Namur, Seraing,
 Lalouviere, CPASLalouviere) follow the same renaming pattern. Only **MeetingCommunes** is in
 the explicit minimal scope — others are tracked but not blocking.
@@ -337,7 +337,7 @@ be re-run on rebase.
     line keying off `Products.PloneMeeting` becomes `plonemeeting.core` and points at the
     iMio fork `git@github.com:duchenean/plonemeeting.core.git` (repo name stays
     `plonemeeting.core`; only the `[sources]` key and the installed distribution name
-    change to `plonemeeting.core`). Likewise the `Products.MeetingCommunes` source line
+    change to `plonemeeting.core`). Likewise the `plonemeeting.communes` source line
     becomes `plonemeeting.communes` pointing at `duchenean/plonemeeting.communes.git`.
     Update the profile `.cfg` files (`communes.cfg`, `communes-dev.cfg`, etc.) accordingly.
   - **CI**: `Jenkinsfile`, GitHub Actions workflows, `bin/test -s Products.PloneMeeting` →
@@ -345,7 +345,7 @@ be re-run on rebase.
   - **Repo-level**: `setup.cfg` (flake8/isort scopes), `.coveragerc` source paths, `tox.ini` if
     present, `Makefile` targets that reference `src/Products.PloneMeeting/`.
 
-- `Products.MeetingCommunes` → **`plonemeeting.communes`**: same recipe end-to-end, smaller
+- `plonemeeting.communes` → **`plonemeeting.communes`**: same recipe end-to-end, smaller
   surface. Done in lockstep with the `Products.PloneMeeting` rename so there is never a state
   where one half compiles against `Products.PloneMeeting` and the other against
   `plonemeeting.core`.
@@ -496,7 +496,7 @@ The migration is **done** when:
 - [ ] CI matrix is green on Py 3.12 / Plone 6.1 only (the Py 2.7 / Plone 4.3 matrix is retired)
 - [ ] No `Products.Archetypes` import remains in `src/`
 - [ ] No package in `versions.cfg` requires Python 2
-- [ ] `Products.PloneMeeting` and `Products.MeetingCommunes` repos are archived; the new repos are the source of truth
+- [ ] `Products.PloneMeeting` and `plonemeeting.communes` repos are archived; the new repos are the source of truth
 - [ ] A 4.3 hotfix branch exists, marked maintenance-only
 
 ---

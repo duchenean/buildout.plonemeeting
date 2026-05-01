@@ -10,10 +10,9 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] Continue **B.2** — Resume the MeetingItem AT→DX migration
-      (browser layer sweep, test suite migration, templates).
-- [ ] **B.4** — Delete the AT framework (all AT content types now
-      ported; audit for stray imports).
+- [ ] **B.4** — Delete the AT framework: audit for stray
+      `Products.Archetypes` imports, drop AT dependencies, verify
+      tests pass with zero AT.
 
 ---
 
@@ -37,11 +36,9 @@ bumped to `6.0.0.dev0` and `plonemeeting.restapi` to `3.0.0.dev0`
 2.x→4.2.x scheme). Punch list lives in
 `MIGRATION_SUMMARY_MEETINGCONFIG.md`.
 
-### B.2 — `MeetingItem` (~8.5 kLOC, the biggest piece)
+### B.2 — `MeetingItem` ✅
 
-7-phase port mirroring the MeetingConfig recipe. The first phase is
-hand-crafted; the rest are mechanical caller sweeps using the
-`at-to-dx-caller-sweep` skill.
+8-phase port mirroring the MeetingConfig recipe.
 
 - [x] **B.2.0** — Schema declaration: `content/meetingitem.py` with
       `model.Schema` mirroring every AT field in snake_case. FTI XML
@@ -56,8 +53,9 @@ hand-crafted; the rest are mechanical caller sweeps using the
 - [x] **B.2.5** — Templates.
 - [x] **B.2.6** — Test suite aligned, DataGridField migrated where
       needed.
-- [ ] **B.2.7** — Subtypes (`MeetingItemTemplate`,
-      `MeetingItemRecurring`) re-derive cleanly from the DX class.
+- [x] **B.2.7** — Subtypes (`MeetingItemTemplate`,
+      `MeetingItemRecurring`) — already DX subclasses in
+      `content/meetingitem.py`; FTI swap in `types.xml`. No work needed.
 - [x] **B.2.8** — Final cleanup: rename stored config values
       camelCase→snake_case.
 

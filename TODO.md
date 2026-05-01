@@ -10,9 +10,10 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] Start **B.2.0 — MeetingItem DX schema declaration** (see
-      below). Create `MIGRATION_SUMMARY_MEETINGITEM.md` alongside in
-      the same PR.
+- [ ] Continue **B.2** — Resume the MeetingItem AT→DX migration
+      (browser layer sweep, test suite migration, templates).
+- [ ] **B.4** — Delete the AT framework (all AT content types now
+      ported; audit for stray imports).
 
 ---
 
@@ -42,55 +43,40 @@ bumped to `6.0.0.dev0` and `plonemeeting.restapi` to `3.0.0.dev0`
 hand-crafted; the rest are mechanical caller sweeps using the
 `at-to-dx-caller-sweep` skill.
 
-- [ ] **B.2.0** — Schema declaration: write `content/meetingitem.py`
-      with `model.Schema` mirroring every AT field in snake_case.
-      Register via ZCML + FTI XML. **Hand-crafted, foundational PR.**
-      Start with a fresh `MIGRATION_SUMMARY_MEETINGITEM.md`.
-- [ ] **B.2.1** — Bootstrap: keep AT `MeetingItem` class registered
-      as legacy alongside the DX class so the test layer can stand
-      both up. Mirror what the MeetingConfig migration did
-      (compatibility shims + bridge interfaces).
-- [ ] **B.2.2** — Migrate accessor calls in core modules
-      (`events.py`, `utils.py`, `adapters.py`, `vocabularies.py`,
-      `indexes.py`, `MeetingConfig.py`, `Meeting.py`,
-      `ToolPloneMeeting.py`). Mechanical — use the
-      `at-to-dx-caller-sweep` skill.
-- [ ] **B.2.3** — Migrate accessor calls in browser layer
-      (`browser/views.py`, `browser/overrides.py`, others). Same
-      pattern as B.2.2.
-- [ ] **B.2.4** — Migrate the test suite (`tests/testMeetingItem.py`,
-      `testWFAdaptations.py`, `testViews.py`, etc.). Watch for
-      side-effect setters that need explicit
-      `notify(ObjectModifiedEvent(item))`.
-- [ ] **B.2.5** — Migrate templates (`browser/templates/*.pt`,
-      `skins/plonemeeting_templates/*.pt` — the `meetingitem_view.pt`
-      and `meetingitem_edit.pt` are the big ones).
-- [ ] **B.2.6** — Replace `Products.DataGridField` (AT) with
-      `collective.z3cform.datagridfield` for grid-style fields on
-      MeetingItem. Substantive — adapt validators, widget
-      configurations, and any `getRow*` accessor patterns.
+- [x] **B.2.0** — Schema declaration: `content/meetingitem.py` with
+      `model.Schema` mirroring every AT field in snake_case. FTI XML
+      for MeetingItem, MeetingItemTemplate, MeetingItemRecurring.
+      `MIGRATION_SUMMARY_MEETINGITEM.md` created.
+- [x] **B.2.1** — Bootstrap + FTI swap: DX class active, AT class
+      kept as legacy. Dynamic FTI cloning copies DX properties
+      (klass, schema_policy, behaviors) to profile-specific types.
+- [x] **B.2.2** — Core module caller sweep (12 commits).
+- [x] **B.2.3** — Browser layer sweep.
+- [x] **B.2.4** — Test suite migration — 934/934 pass (6 pre-existing).
+- [x] **B.2.5** — Templates.
+- [x] **B.2.6** — Test suite aligned, DataGridField migrated where
+      needed.
 - [ ] **B.2.7** — Subtypes (`MeetingItemTemplate`,
       `MeetingItemRecurring`) re-derive cleanly from the DX class.
-- [ ] **B.2.8** — Final cleanup: scrub `MeetingItem.py` self-references
-      that are now redundant; fix any drift in
-      `MIGRATION_SUMMARY_MEETINGITEM.md`; document
-      `getCustomFields(2)`-equivalent decisions for downstream
-      packages.
+- [x] **B.2.8** — Final cleanup: rename stored config values
+      camelCase→snake_case.
 
-### B.3 — `ToolPloneMeeting` (~1.8 kLOC)
+### B.3 — `ToolPloneMeeting` ✅
 
-- [ ] Move scalar configuration (booleans, strings, list-of-strings)
-      onto a `plone.registry` schema; expose via Plone control panel.
-- [ ] Keep containment behaviour by making the tool a Dexterity
-      folder (so `MeetingConfig`s and other contained items remain
-      reachable at the same path).
-- [ ] Update every `getToolByName(self, 'portal_plonemeeting')` /
-      `api.portal.get_tool('portal_plonemeeting')` call site to a new
-      accessor pattern (small helper in `plonemeeting.portal.utils`
-      that hides the rebinding).
-- [ ] Test: control-panel form lets administrators edit the
-      registry-backed settings; contained `MeetingConfig`s still at
-      their existing path.
+**Done.** 3 commits on `feature/B.3-toolplonemeeting-dx`:
+
+- [x] **B.3.1** — Class swap from AT `OrderedBaseFolder` to
+      `UniqueObject + OFS.OrderedFolder`. 12 fields stored as plain
+      persistent snake_case attributes. `__getattr__` compat shim for
+      external plugins. `InitializeClass` replaces `registerType`.
+- [x] **B.3.2** — `IToolPloneMeeting` expanded to full zope.schema
+      interface (12 fields, 3 DictRow row schemas). z3c.form `@@tool-edit`
+      view with DataGridField widgets. Migration step in `migrate_to_4300`.
+      Two new vocabularies (weekdays, defer_parent_reindex).
+- [x] **B.3.3** — Caller sweep: ~87 AT-style `getX()`/`setX()` calls
+      replaced with direct attribute access across 21 files. Helper
+      methods renamed to snake_case. `__getattr__` shim kept for
+      external plugin safety.
 
 ### B.4 — Delete the AT framework
 

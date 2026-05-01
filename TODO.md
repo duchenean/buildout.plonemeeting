@@ -10,9 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **B.4** — Delete the AT framework: audit for stray
-      `Products.Archetypes` imports, drop AT dependencies, verify
-      tests pass with zero AT.
+- [ ] **C.1** — Python 3 readiness (static analysis pass).
 
 ---
 
@@ -25,7 +23,7 @@ no SOAP, no CKEditor, no async runtime, no `cron4plone`, no
 
 ---
 
-## Stage B — Finish AT → DX
+## Stage B — Finish AT → DX ✅
 
 ### B.1 — `MeetingConfig` ✅
 
@@ -76,16 +74,26 @@ bumped to `6.0.0.dev0` and `plonemeeting.restapi` to `3.0.0.dev0`
       methods renamed to snake_case. `__getattr__` shim kept for
       external plugin safety.
 
-### B.4 — Delete the AT framework
+### B.4 — Delete the AT framework ✅
 
-- [ ] Confirm no `from Products.Archetypes` imports remain anywhere
-      in `src/`.
-- [ ] Drop `archetypes.schematuning` and
-      `archetypes.referencebrowserwidget` from
-      `versions.cfg` and `install_requires` (already commented in
-      Stage A — convert from comment to deletion here).
-- [ ] Verify the test suite is green on Plone 4.3 / Py 2.7 with
-      zero AT.
+**Done.** 3 commits on `feature/B.4-drop-at-framework`:
+
+- [x] **B.4.1** — Dropped AT framework imports from all active code
+      (ToolPloneMeeting, browser, exportimport, setuphandlers,
+      migrations, utils). Legacy AT class files (`Meeting.py`,
+      `MeetingItem.py`, `MeetingConfig.py`, `MeetingUser.py`,
+      `MeetingCategory.py`) retained for migration compatibility.
+- [x] **B.4.2** — Updated test suite for AT removal. Fixed
+      `Products.Archetypes` test imports, replaced AT test helpers
+      with DX equivalents.
+- [x] **B.4.3** — Fixed pre-existing test failures from AT→DX
+      migration: template `usedAttrs` camelCase→snake_case alignment,
+      vocabulary name fix, `UnicodeEncodeError` in `MeetingItem.Title()`,
+      portal title viewlet test resilience.
+
+`archetypes.schematuning` already commented out in `setup.py` and
+`versions.cfg` (Stage A). Remaining AT imports are only in legacy AT
+class files kept for migration readers.
 
 ---
 

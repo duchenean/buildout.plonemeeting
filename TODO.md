@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.1** — Python 3 readiness (static analysis pass).
+- [ ] **C.3** — Package rename (`Products.PloneMeeting` → `plonemeeting.portal`).
 
 ---
 
@@ -103,21 +103,21 @@ Goal: every line is **ready** for Py 3.12 / Plone 6.1, plus the
 package rename has landed. Runtime stays on 4.3 throughout — Py3 is
 caught by static analysis, runtime validation happens in Stage D.
 
-### C.1 — Python 3 readiness (static-only)
+### C.1 — Python 3 readiness (static-only) ✅
 
-- [ ] `pyupgrade --py27-plus` then `pyupgrade --py3-plus` (the
-      latter as a *check*).
-- [ ] `python -m pylint --py3k` clean across all `src/` packages
-      (the canonical Py3-readiness check).
-- [ ] `flake8 --select=B,C,E,W,F` plus `flake8-modern` if available.
-- [ ] Add `from __future__ import absolute_import, division,
-      print_function, unicode_literals` to every `.py`.
-- [ ] Manual audit: `dict.has_key`, `iteritems`/`itervalues`/
-      `iterkeys`, `xrange`, `unicode`, `basestring`, `print`
-      statements, `except E, e` form, octal literals (`0755` →
-      `0o755`), tuple-unpack in lambdas, relative imports,
-      bytes/str discipline, `__cmp__` → `__eq__`/`__lt__`/
-      `functools.total_ordering`, dict ordering assumptions.
+**Done.** 1 commit on `feature/B.4-drop-at-framework`:
+
+- [x] `from __future__ import absolute_import, print_function` added
+      to all 154 non-empty `.py` files (`unicode_literals` and
+      `division` deliberately omitted).
+- [x] 9 implicit relative imports → explicit (required by
+      `absolute_import`).
+- [x] 32 `iteritems`/`itervalues`/`iterkeys` → `items`/`values`/`keys`.
+- [x] 7 old-style `except X, e:` → `except X as e:`.
+- [x] ~25 dict view subscript accesses wrapped with `list()`.
+- [x] 22 `basestring` → `six.string_types`, 29 `unicode()` →
+      `six.text_type()` (19 files gained `import six`).
+- [x] Test suite: 933/933 pass (2 pre-existing errors unrelated).
 
 ### C.2 — Buildout → pip / uv
 

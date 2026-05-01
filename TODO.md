@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.3** — Package rename (`Products.MeetingCommunes` → `plonemeeting.communes`).
+- [ ] **C.3** — `imio.pm.locales` translation domain decision.
 
 ---
 
@@ -133,10 +133,9 @@ caught by static analysis, runtime validation happens in Stage D.
       filesystem move, namespace declaration, every Python import,
       every ZCML directive, every GenericSetup XML reference, every
       page template reference. 681 files, 934/934 tests pass.
-- [ ] `Products.MeetingCommunes` → **`plonemeeting.communes`** —
-      same recipe, smaller surface. In lockstep with the
-      `Products.PloneMeeting` rename so there's never a half-renamed
-      state.
+- [x] `Products.MeetingCommunes` → **`plonemeeting.communes`** —
+      full namespace rename, 578 files, PROJECTNAME updated,
+      934/934 tests pass.
 - [ ] `imio.pm.locales` translation domain decision: keep
       `PloneMeeting` to avoid a re-translation pass, or rename and
       re-translate. (See `MIGRATION_PLAN` §4.3.)

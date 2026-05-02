@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.4** — Pre-cutover freeze (`pylint --py3k`, tag releases, snapshot prod ZODB).
+- [ ] **C.4** — Pre-cutover freeze (tag releases, snapshot prod ZODB).
 
 ---
 
@@ -141,7 +141,9 @@ system as a prerequisite. Keep the existing `zc.buildout` +
 
 ### C.4 — Pre-cutover freeze
 
-- [ ] `pylint --py3k` zero errors on every package in `src/`.
+- [x] `pylint --py3k` zero errors on `plonemeeting.core` and
+      `plonemeeting.communes` — 129 fixes total, 10.00/10 score,
+      934/934 tests pass.
 - [ ] Tag pre-cutover release of `plonemeeting.core` and
       `plonemeeting.communes` so Stage D can be reproducibly built.
 - [ ] Snapshot a sanitized prod ZODB + blobs (`make copy-data`) —

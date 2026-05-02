@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.3** — `imio.pm.locales` translation domain decision.
+- [ ] **C.4** — Pre-cutover freeze (`pylint --py3k`, tag releases, snapshot prod ZODB).
 
 ---
 
@@ -119,13 +119,11 @@ caught by static analysis, runtime validation happens in Stage D.
       `six.text_type()` (19 files gained `import six`).
 - [x] Test suite: 933/933 pass (2 pre-existing errors unrelated).
 
-### C.2 — Buildout → pip / uv
+### ~~C.2 — Buildout → pip / uv~~ (dropped)
 
-- [ ] Replace `Makefile` + `buildout.cfg` chain with `pyproject.toml`
-      + `requirements/*.txt` + a cookiecutter-plone style layout.
-- [ ] Reimplement profile selection as `make profile=communes run`.
-- [ ] Use `mxdev` for development checkouts (modern `mr.developer`).
-- [ ] Keep the thin `Makefile` wrapper for muscle memory.
+Buildout works fine with Plone 6.1 — no need to migrate the build
+system as a prerequisite. Keep the existing `zc.buildout` +
+`mr.developer` setup through the cutover.
 
 ### C.3 — Package rename
 
@@ -136,9 +134,10 @@ caught by static analysis, runtime validation happens in Stage D.
 - [x] `Products.MeetingCommunes` → **`plonemeeting.communes`** —
       full namespace rename, 578 files, PROJECTNAME updated,
       934/934 tests pass.
-- [ ] `imio.pm.locales` translation domain decision: keep
-      `PloneMeeting` to avoid a re-translation pass, or rename and
-      re-translate. (See `MIGRATION_PLAN` §4.3.)
+- [x] `imio.pm.locales` translation domain decision: **keep
+      `PloneMeeting`** — renaming would require re-translating every
+      `.po` file for zero functional benefit. Domain is internal
+      plumbing, not user-visible.
 
 ### C.4 — Pre-cutover freeze
 
@@ -157,10 +156,9 @@ analysis from Stage C meets reality here — expect a fix-up sprint.
 
 ### D.1 — Stand up the Plone 6.1 skeleton
 
-- [ ] New `requirements/` pinned to Plone 6.1.x + Python 3.12.
-- [ ] Use `cookiecutter-plone` (or equivalent) as layout reference;
-      keep `plonemeeting.core` and `plonemeeting.communes` as src
-      checkouts via `mxdev`.
+- [ ] Update `versions.cfg` pins and `base.cfg` recipes to their
+      Plone 6.1.x / Python 3.12 equivalents. Keep existing buildout
+      layout with `mr.developer` src checkouts.
 - [ ] Plone 6.1 **Classic** theme. The 6 Classic UI is the only
       frontend we ship.
 - [ ] Bring up an empty Plone 6.1 site with the two packages

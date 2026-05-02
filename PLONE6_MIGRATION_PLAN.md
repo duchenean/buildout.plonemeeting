@@ -35,7 +35,7 @@ A clean four-stage strategy, each stage shippable on its own:
 |---|---|---|
 | **A — Slim down** | Unused/obsolete addons removed; SOAP/AMQP dropped; AT-only widgets ported | Plone 4.3 / Py 2.7 |
 | **B — Finish AT→DX** | `MeetingConfig` (already on branch) + `MeetingItem` migrated; `ToolPloneMeeting` cleansed | Plone 4.3 / Py 2.7 |
-| **C — Modernize & rename (code-side only)** | Py3-ready code (static checks), buildout → pip/uv, package rename, `zodbupdate` rename rules in place | Plone 4.3 / Py 2.7 (still runnable) |
+| **C — Modernize & rename (code-side only)** | Py3-ready code (static checks), package rename, `zodbupdate` rename rules in place | Plone 4.3 / Py 2.7 (still runnable) |
 | **D — Plone 6.1 Classic cutover** | Dependency bumps, runtime validation on Py 3.12, data migration, production rollout | Plone 6.1 Classic / Py 3.12 |
 
 **No Plone 5.2 bridge.** Plone 5.2 is deprecated; the extra hop is not worth maintaining.
@@ -263,14 +263,11 @@ Tooling, applied to `plonemeeting.core` (post-rename) and to all in-repo iMio pa
 - **Acceptance**: `pylint --py3k` reports no errors on the entire `src/` tree;
   the existing Py 2.7 / Plone 4.3 test suite is still green.
 
-**4.2 Buildout → pip / uv**
+**~~4.2 Buildout → pip / uv~~ (dropped)**
 
-- Replace `Makefile` + `buildout.cfg` chain with a `pyproject.toml` + `requirements/*.txt`
-  + `cookiecutter-plone` style layout.
-- Keep the *profile selection* abstraction (currently switching `.cfg`s); reimplement as
-  `make profile=communes run`.
-- Use `mxdev` for development checkouts (the modern `mr.developer`).
-- Keep the `Makefile` thin wrapper so muscle memory still works.
+Buildout works fine with Plone 6.1 — no need to migrate the build system as a
+prerequisite. The existing `zc.buildout` + `mr.developer` setup carries through
+the cutover. A future move to pip/mxdev is optional post-migration cleanup.
 
 **4.3 Package rename**
 
@@ -381,8 +378,9 @@ caught — that is the cost of skipping a 5.2 bridge, and the structure below as
 **5.1 Stand up a Plone 6.1 Classic skeleton**
 
 - New `requirements/` pinned to **Plone 6.1.x** + Python **3.12**.
-- Use `cookiecutter-plone` (or equivalent) as the layout reference; keep `plonemeeting.core`
-  and `plonemeeting.communes` as src checkouts via `mxdev`.
+- Keep the existing buildout layout; update `versions.cfg` pins and
+  `base.cfg` recipes to their Plone 6.1 equivalents. `plonemeeting.core`
+  and `plonemeeting.communes` remain as `mr.developer` src checkouts.
 - Plone 6.1 **Classic** theme. The Plone 6 Classic UI is the only frontend we ship.
 - Bring up an empty Plone 6.1 site with our two packages installed and the test profile
   applied. This is the first time the codebase actually runs on Py 3.12.

@@ -258,7 +258,7 @@ zero direct Python imports inside the codebase.
 Audit found no in-tree Python references to `communesplone.layout`.
 If a downstream visual regression appears after this drop (missing
 viewlet, CSS, profile action), inline the specific feature into
-either `plonemeeting.portal` or `plonetheme.imioapps`. Otherwise,
+either `plonemeeting.core` or `plonetheme.imioapps`. Otherwise,
 drop the package permanently.
 
 **Commented call-sites in `Products.PloneMeeting`**

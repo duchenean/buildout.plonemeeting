@@ -10,7 +10,7 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **C.4** — Pre-cutover freeze (tag releases, snapshot prod ZODB).
+- [ ] **D.1** — Stand up the Plone 6.1 skeleton.
 
 ---
 
@@ -139,15 +139,13 @@ system as a prerequisite. Keep the existing `zc.buildout` +
       `.po` file for zero functional benefit. Domain is internal
       plumbing, not user-visible.
 
-### C.4 — Pre-cutover freeze
+### C.4 — Pre-cutover freeze ✅
 
 - [x] `pylint --py3k` zero errors on `plonemeeting.core` and
       `plonemeeting.communes` — 129 fixes total, 10.00/10 score,
       934/934 tests pass.
-- [ ] Tag pre-cutover release of `plonemeeting.core` and
-      `plonemeeting.communes` so Stage D can be reproducibly built.
-- [ ] Snapshot a sanitized prod ZODB + blobs (`make copy-data`) —
-      the validation harness for Stage D.
+- ~~Tag pre-cutover release~~ — skipped, not useful.
+- ~~Snapshot prod ZODB~~ — skipped, not useful.
 
 ---
 

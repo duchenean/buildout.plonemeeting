@@ -10,7 +10,9 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- [ ] **D.1** — Stand up the Plone 6.1 skeleton.
+- D.1–D.4 done. D.5 largely done.
+- **934 tests: 4 failures (3 pre-existing ordering, 1 appy env), 1 error (appy env), 12 skipped.**
+- Next: D.5 residual — investigate test-ordering failures (View permission leaks between modules). Start D.6 (data migration) or D.4 follow-up items.
 
 ---
 

@@ -23,7 +23,7 @@ help:  ## Displays this help
 
 install-requirements:
 	rm -f .installed.cfg .mr.developer.cfg
-	virtualenv -p python2 .
+	python3.12 -m venv .
 	bin/python bin/pip install -r requirements.txt
 	# initialize CUSTOM_TMP directory
 	mkdir -p -m 777 /tmp/appy

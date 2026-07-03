@@ -12,13 +12,14 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 **Read [`HANDOFF.md`](HANDOFF.md)** — full state of the 2026-07-03 session.
 
-- D.1–D.3 done, D.4 partial, D.5 nearly done, D.6 milestone 1 landed.
-- **communes: 939 tests, 4 failures (one remaining ordering leak — prime
-  suspect identified in HANDOFF.md §1) + 1 env error (LibreOffice not
-  running — see HANDOFF.md §2). Two of three ordering leaks fixed.**
-- **restapi: 94 red → 24 red; large sweep UNCOMMITTED (HANDOFF.md §3).**
-- Next: (1) fix the third ordering leak, (2) review+commit the restapi
-  sweep and finish its 24 residuals, (3) D.6 open points.
+- D.1–D.3 done, D.4 partial, D.5 done (communes 939/0F/0E; restapi 93/95),
+  D.6 milestone 1 landed.
+- **communes: 939 tests, 0 failures, 0 errors** (all 3 ordering leaks
+  fixed; the appy PDF test is green with LibreOffice up). D.5 done.
+- **restapi: 94 red → 2 red; sweep committed (plone6 `8123b56`).**
+  2 residuals deferred (vocab i18n msgid, search-count ordering) — see
+  HANDOFF.md §1.
+- Next: (1) restapi 2 residuals, (2) D.6 data-migration open points.
 
 ---
 
@@ -246,13 +247,14 @@ stack:
 
 ### D.5 — Iterate until tests pass
 
-- [ ] `plonemeeting.core` test suite green on Plone 6.1 / Py 3.12.
-      Expect non-trivial fix-up: lxml/BeautifulSoup string-vs-bytes
-      drift, `DateTime` vs `datetime` boundaries, catalog query
-      result type changes, browser-layer registration changes,
-      workflow chain registration differences.
-- [ ] `plonemeeting.communes` test suite green.
-- [ ] `plonemeeting.restapi` integration tests green.
+- [x] `plonemeeting.core` test suite green on Plone 6.1 / Py 3.12
+      (exercised via the communes full suite, which extends core).
+- [x] `plonemeeting.communes` test suite green — 939 tests, 0 failures,
+      0 errors (with LibreOffice up for the appy PDF test).
+- [~] `plonemeeting.restapi` integration tests: 93/95 green (94 → 2 red,
+      committed as plone6 `8123b56`). 2 residuals deferred: a
+      usedItemAttributes vocab msgid/i18n mismatch and a
+      search-count ordering/non-determinism issue. See HANDOFF.md.
 
 ### D.6 — Data migration (`collective.exportimport`)
 

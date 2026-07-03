@@ -10,9 +10,15 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-- D.1–D.4 done. D.5 largely done.
-- **934 tests: 4 failures (3 pre-existing ordering, 1 appy env), 1 error (appy env), 12 skipped.**
-- Next: D.5 residual — investigate test-ordering failures (View permission leaks between modules). Start D.6 (data migration) or D.4 follow-up items.
+**Read [`HANDOFF.md`](HANDOFF.md)** — full state of the 2026-07-03 session.
+
+- D.1–D.3 done, D.4 partial, D.5 nearly done, D.6 milestone 1 landed.
+- **communes: 939 tests, 4 failures (one remaining ordering leak — prime
+  suspect identified in HANDOFF.md §1) + 1 env error (LibreOffice not
+  running — see HANDOFF.md §2). Two of three ordering leaks fixed.**
+- **restapi: 94 red → 24 red; large sweep UNCOMMITTED (HANDOFF.md §3).**
+- Next: (1) fix the third ordering leak, (2) review+commit the restapi
+  sweep and finish its 24 residuals, (3) D.6 open points.
 
 ---
 

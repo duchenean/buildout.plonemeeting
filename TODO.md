@@ -156,48 +156,60 @@ system as a prerequisite. Keep the existing `zc.buildout` +
 The single runtime jump. No intermediate Plone version. Static
 analysis from Stage C meets reality here — expect a fix-up sprint.
 
-### D.1 — Stand up the Plone 6.1 skeleton
+### D.1 — Stand up the Plone 6.1 skeleton ✅
 
-- [ ] Update `versions.cfg` pins and `base.cfg` recipes to their
+**Done** (commit `6681338`).
+
+- [x] Update `versions.cfg` pins and `base.cfg` recipes to their
       Plone 6.1.x / Python 3.12 equivalents. Keep existing buildout
       layout with `mr.developer` src checkouts.
-- [ ] Plone 6.1 **Classic** theme. The 6 Classic UI is the only
+- [x] Plone 6.1 **Classic** theme. The 6 Classic UI is the only
       frontend we ship.
-- [ ] Bring up an empty Plone 6.1 site with the two packages
+- [x] Bring up an empty Plone 6.1 site with the two packages
       installed and the test profile applied.
 
-### D.2 — Dependency bumps to Plone 6.1 lines
+### D.2 — Dependency bumps to Plone 6.1 lines ✅
 
-- [ ] `plone.restapi` → 9.x.
-- [ ] `eea.facetednavigation` → 16.x. Faceted XML/JSON config files
+**Done** — pins landed in `versions.cfg`; packages without a P6
+release are checked out in `src/` on `python3`/p6-compat branches.
+
+- [x] `plone.restapi` → 9.x.
+- [x] `eea.facetednavigation` → 16.x. Faceted XML/JSON config files
       in `faceted_conf/` likely need small adjustments.
-- [ ] `dexterity.localroles`, `dexterity.localrolesfield` → 2.x.
-- [ ] `plone.app.versioningbehavior` → 2.x;
+- [x] `dexterity.localroles`, `dexterity.localrolesfield` → 2.x.
+- [x] `plone.app.versioningbehavior` → 2.x;
       `plone.formwidget.namedfile` → 3.x.
-- [ ] `collective.documentgenerator` → 4.0 + `appy` POD (current iMio
+- [x] `collective.documentgenerator` → 4.0 + `appy` POD (current iMio
       release) — both already P6.1/Py3 ready, straight pin bump.
-- [ ] `collective.contact.{core,plonegroup,widget}`,
+- [x] `collective.contact.{core,plonegroup,widget}`,
       `collective.eeafaceted.*`, `collective.iconifiedcategory`,
       `collective.dms.scanbehavior`,
       `collective.behavior.{internalnumber,talcondition}`,
       `collective.querynextprev`, `collective.messagesviewlet`,
       `collective.excelexport`, `ftw.labels` — bump to P6 release
       lines; port where no P6 release exists yet.
-- [ ] `imio.{actionspanel,annex,helpers,history,prettylink,migrator,fpaudit,pyutils,pm.locales,restapi,webspellchecker}` → P6 lines.
-- [ ] `plonetheme.imioapps` — verify P6.1-compatible release. If
+- [x] `imio.{actionspanel,annex,helpers,history,prettylink,migrator,fpaudit,pyutils,pm.locales,restapi,webspellchecker}` → P6 lines.
+- [x] `plonetheme.imioapps` — verify P6.1-compatible release. If
       not, ship initially with stock Plone 6 Classic and port iMio
       styling as follow-up.
-- [ ] **TinyMCE** stock — no plugin parity work (Stage A dropped
+- [x] **TinyMCE** stock — no plugin parity work (Stage A dropped
       CKEditor outright).
 
-### D.3 — `imio.dashboard` decision
+### D.3 — `imio.dashboard` decision ✅
 
-- [ ] (a) P6 fork of `imio.dashboard` exists and works → bump pin.
+**Done** — option (a): `imio.dashboard` ported for Plone 6 on the
+`python3` branch of the src checkout (imports fixed, obsolete
+upgrades ignored, `eea.faceted.vocabularies` migration).
+
+- [x] (a) P6 fork of `imio.dashboard` exists and works → bump pin.
       OR (b) inline the remaining `imio.dashboard` features directly
       into `plonemeeting.core`. Single biggest schedule risk
       inside Stage D.
 
-### D.4 — Reactivate Stage-A "comment, don't delete" features
+### D.4 — Reactivate Stage-A "comment, don't delete" features (partial)
+
+Decisions are made; reimplementation of AMQP / TinyMCE styles /
+scheduler trigger remains as follow-up (not cutover blockers).
 
 Per [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md), each of
 these has commented code waiting to be brought back under the new
@@ -219,9 +231,9 @@ stack:
 - [ ] **Async preview generation** — reattach to whatever
       background-task model is adopted. The `JobRunner` event hook
       in `imio.annex/patch.py` is preserved as a comment.
-- [ ] **`Products.PasswordStrength` decision** — kept on the 4.3
-      line. Plone 6 ships its own password policy; configure the
-      native one and drop our wired-in version.
+- [x] **`Products.PasswordStrength` decision** — dropped; Plone 6
+      native password policy is used (pin and install_requires
+      commented out).
 - [ ] **`imio.webspellchecker` decision** — kept on the 4.3 line.
       Revisit once we know whether the deployment still pays for
       the SaaS subscription.

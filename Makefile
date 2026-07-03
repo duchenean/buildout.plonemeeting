@@ -60,6 +60,11 @@ uno-venv:  ## Builds var/uno-venv: python with uno + appy for the POD converter 
 libreoffice-local:  ## Starts a LibreOffice server daemon process using locally installed LibreOffice
 	soffice '--accept=socket,host=localhost,port=2002;urp;StarOffice.ServiceManager' --nologo --headless --nofirststartwizard --norestore
 
+# NB: the appy converter (var/uno-venv, see uno-venv target) speaks URP
+# with the python-uno bindings of the HOST LibreOffice. If the host LO
+# major version differs from the server's (this docker image is LO 7.3),
+# loadComponentFromURL dies with "Binary URP bridge disposed" — use
+# `make libreoffice-local` instead (host soffice, matching versions).
 .PHONY: libreoffice
 libreoffice:  ## Start a LibreOffice server on port 2002
 	make start-libreoffice

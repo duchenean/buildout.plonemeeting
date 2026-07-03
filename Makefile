@@ -51,6 +51,11 @@ cleanall:  ## Clears build artefacts and virtualenv
 	if test -f var/instance1.pid; then kill -15 $(shell cat var/instance1.pid) || true;fi
 	rm -fr bin include lib local share develop-eggs downloads eggs parts .installed.cfg .mr.developer.cfg .git/hooks/pre-commit var/tmp
 
+.PHONY: uno-venv
+uno-venv:  ## Builds var/uno-venv: python with uno + appy for the POD converter (port.cfg python-uno)
+	/usr/bin/python3 -m venv --system-site-packages var/uno-venv
+	var/uno-venv/bin/pip install appy==$(shell grep '^appy' versions.cfg | cut -d= -f2 | tr -d ' ')
+
 .PHONY: libreoffice-local
 libreoffice-local:  ## Starts a LibreOffice server daemon process using locally installed LibreOffice
 	soffice '--accept=socket,host=localhost,port=2002;urp;StarOffice.ServiceManager' --nologo --headless --nofirststartwizard --norestore

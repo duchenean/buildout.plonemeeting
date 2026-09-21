@@ -47,7 +47,10 @@ buildout (`feature/D-plone6-cutover`):
   three packages.
 - **core `testP4ToP6Migration`: 19/19** (codec round-trips, item and
   meeting round-trips through the export and import hooks, post-process
-  view).
+  view). The last core commit (export_p43 POST/type-listing fix) added
+  2 unit tests; only the 16 layer-free tests could be re-run after it
+  (16/16), the 5 layer tests are blocked by the incident below. Re-run
+  the whole module once the checkout is back.
 - **communes full suite**: launched after the import-step fix
   (`/tmp/pm_next_logs/testmc_full.log`, `bin/testmc --layer='!.*Robot.*'`,
   host soffice up). It was still running when this file was written:

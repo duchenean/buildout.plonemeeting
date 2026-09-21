@@ -24,6 +24,19 @@ index 0b7f202..806b1b2 100644
          }
      });
  };
+diff --git a/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt b/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt
+index 40eaf01..e69b2c0 100644
+--- a/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt
++++ b/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt
+@@ -4,7 +4,7 @@
+      tal:condition="view/available">
+   <form method="POST"
+         tal:repeat="batch_action view/get_batch_actions"
+-        tal:attributes="action batch_action/name;
++        tal:attributes="action string:${context/absolute_url}/${batch_action/name};
+                         id batch_action/name;
+                         class python: not batch_action['overlay'] and 'batch-action-form' or 'batch-action-form do-overlay'"
+         >
 diff --git a/src/collective/eeafaceted/batchactions/profiles.zcml b/src/collective/eeafaceted/batchactions/profiles.zcml
 index 8b77e95..e98b74d 100644
 --- a/src/collective/eeafaceted/batchactions/profiles.zcml

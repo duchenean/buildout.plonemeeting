@@ -131,3 +131,21 @@ index d8654bd..abe7e01 100644
                  collectionUID = collectionUID[0]
              collection = uuidToObject(collectionUID, unrestricted=True)
          if caching and collection:
+diff --git a/src/collective/eeafaceted/collectionwidget/widgets/view.js b/src/collective/eeafaceted/collectionwidget/widgets/view.js
+index 7f08775..77732af 100644
+--- a/src/collective/eeafaceted/collectionwidget/widgets/view.js
++++ b/src/collective/eeafaceted/collectionwidget/widgets/view.js
+@@ -183,8 +183,8 @@ Faceted.initializeTagsCloudCollectionWidget = function(evt){
+   });
+ };
+ 
+-jQuery(document).ready(function(){
+-  jQuery(Faceted.Events).bind(
+-    Faceted.Events.INITIALIZE,
+-    Faceted.initializeTagsCloudCollectionWidget);
+-});
++// eea.facetednavigation fires INITIALIZE from its own document-ready
++// handler. Bind now, a later ready handler misses the event.
++jQuery(Faceted.Events).on(
++  Faceted.Events.INITIALIZE,
++  Faceted.initializeTagsCloudCollectionWidget);

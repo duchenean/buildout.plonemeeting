@@ -1,4 +1,4 @@
-# Session handoff — 2026-09-21 (D.5 fully closed, D.6 hooks complete)
+# Session handoff — 2026-09-21 (D.5 closed, D.5bis second pass, D.6 hooks complete)
 
 Context for the next session (human or LLM). Read together with
 [`TODO.md`](TODO.md) and [`MIGRATION_DATA.md`](MIGRATION_DATA.md).
@@ -96,15 +96,61 @@ for whoever picks this up:
 - Lesson: never point a bundle `jscompilation`/`csscompilation` at a skin
   file (FSFile) — the resource viewlet raises and every page 500s.
 
+## D.5bis second pass (2026-09-21, later afternoon)
+
+Decision: keep `collective.quickupload` (mockup `pat-upload` has no per-file
+title/category form). Everything below was verified with a headless Chrome
+harness, see `tools/browser-checks/README.md` (Playwright from a sibling
+project, private instance on `localhost:8091`; the theme is off on
+`127.0.0.1`, diazo hostname blacklist).
+
+Core commits on `feature/D-plone6-cutover` (this session): the
+`dxWidgetValue` on the request (plone.protect write-on-read, left
+uncommitted by the previous session) and the D.5bis follow-ups (quickupload
+settings in `registry.xml`, `migrate_to_4301` installs quickupload and loads
+the select2 bundles, `annexDecision` icons, popups.js history/quick upload
+bindings, `AnnexActionsPanelView` parent walk removed). Another session
+committed `7da25063f` (rail counts) which swept the `plonemeeting.js`
+INITIALIZE change in; the buildout `0869d46` (D.5ter) swept the first
+TODO.md quickupload edit in. Both fine.
+
+Dependency checkouts changed (uncommitted, snapshots in `patches/src-wip/`):
+imio.annex (quickupload profile dependency, bundle order, `global_defines`,
+SESSION, `pretty_title_or_id`, CSRF token, icons), imio.helpers (qq override
+guard), collective.eeafaceted.collectionwidget and collective.z3cform.select2
+(INITIALIZE binding; select2 also gets a `profiles/plone6/` with bundles),
+collective.eeafaceted.batchactions (absolute form action), imio.actionspanel
+(spinner, `++plone++` icon paths), collective.quickupload (SESSION,
+`pretty_title_or_id`), imio.webspellchecker (no script tag without a bundle
+URL).
+
+Dev DB (`Plone` on the shared ZEO) already has: quickupload installed with
+the four settings, `imio-annex-quickupload` and select2 bundle records,
+annex/annexDecision FTI icons. The five test annexes created on
+`copy_of_recItem2` were deleted again. `bin/instance1` still needs a restart.
+
+Browser results: dashboard console clean, 14/14 faceted widgets registered
+(incl. `c1`); history, add annex, quick upload (real upload creates the
+annex with its category) and batch "Changer l'état" modals open and close;
+item view and annexes page without console errors.
+
+Tests: final combined run of `testAnnexes`, `testP4ToP6Migration` and
+`testSetup` after all edits: **83 tests, 0 failures, 0 errors, 4 skipped**
+(`/tmp/pm_next_logs/test_final_d5bis.log`).
+
 ## Open threads (priority order)
 
-1. **Finish D.5bis** (TODO.md "Still to do": quickupload errors,
-   collection widget registration, click-test the popups), restart
-   `bin/instance1`.
-2. **Re-run `bin/testmc -t test_pm_ItemExportPDFForm`** with the host
+1. **D.5bis residuals** (TODO.md "Still to do"): class-name checks vs the
+   DX item subclasses, popups not reachable on the dev items (transition
+   with comment, duplicate, PDF export, advice, attendees), the
+   `Migrator._before_reinstall` CKEditor properties, restart `bin/instance1`.
+2. **Theme layout** (D.5ter, theme session): searches column stacks above
+   the content, folder actions button row, unstyled searches portlet on
+   item pages.
+3. **Re-run `bin/testmc -t test_pm_ItemExportPDFForm`** with the host
    soffice serving on :2002 (`make libreoffice-local`); the only test
    not seen green in this environment.
-2. **D.6 end-to-end dry run** — the only D.6 box left. Needs a prod copy
+4. **D.6 end-to-end dry run** — the only D.6 box left. Needs a prod copy
    (`make copy-data server=<host> buildout=<cfg>`), a 4.3 buildout with
    `collective.exportimport = 1.16` / `plone.restapi = 7.9.1`, then the
    sequence in `MIGRATION_DATA.md` §1 (export script) and §2 (import
@@ -112,10 +158,11 @@ for whoever picks this up:
    reveal: unsupported value types in the extra state (logged as
    warnings at export), profile-package attributes missing from
    `extra_state.py` lists, and encoding edge cases in histories.
-3. **D.4 deferred reactivations** (not cutover blockers): AMQP / scan_id
+5. **D.4 deferred reactivations** (not cutover blockers): AMQP / scan_id
    (16 marked comment blocks), TinyMCE style formats, nightly tasks
    external trigger, async previews, webspellchecker decision.
-4. **D.7 rollout**: nothing started.
+6. **D.7 rollout**: nothing started.
+7. **Upstream PRs** for the 13 dependency checkouts in `patches/src-wip/`.
 
 ## Known noise
 

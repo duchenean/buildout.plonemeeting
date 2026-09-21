@@ -322,7 +322,10 @@ with theme + PM CSS, all bundles load in dependency order, no `Faceted`
 errors, PM/actionspanel/batchactions functions defined, `Faceted.Widgets`
 has 13 widgets, `testP4ToP6Migration` 21/21 with the new profile files.
 
-**Still to do / not verified:**
+**Second pass (2026-09-21, later): click tests with a headless Chrome
+harness** (`tools/browser-checks/`, Playwright, private instance on
+`localhost:8091`; `127.0.0.1` is on the diazo hostname blacklist so the
+theme is off there). Done:
 
 - [x] `qq is not defined` / `PloneQuickUpload is not defined`: the
       `collective.quickupload` profile was not installed on P6. Kept (decision
@@ -332,16 +335,72 @@ has 13 widgets, `testP4ToP6Migration` 21/21 with the new profile files.
       property values are registry records in core `registry.xml`,
       `migrate_to_4301` installs the product on existing sites, prod pin
       bumped to 2.0.0a1 (first P6 release; the master checkout adds Py3 fixes).
-- [ ] Collection widget `c1` still not registered in `Faceted.Widgets`
-      after the sync-loading fix — check `collectionwidget/widgets/view.js`
-      hooks now that `Faceted` exists at ready time (last browser check ran
-      on a stale document, redo after a real reload on :8091).
-- [ ] Exercise the ported popups in the browser: batch action "Changer
-      l'état" (`imio_modal_form` + `submitFormHelper` + cancel), actions
-      panel transition with comment (`applyWithComments` inside the modal),
-      duplicate item (`redirect: true`), PDF export (`submit: 'native'`),
-      advice add/edit and annex edit (unlock on `hidden`), attendees forms
-      (`onsuccessManageAttendees` uses `modal.redraw`). None clicked yet.
+      Bundle order: `imio-annex-quickupload` depends on
+      `collective.quickupload.helpers`; the `qq._addSelection` override in
+      `imio.helpers/helpers.js` runs at document ready with a `typeof qq`
+      guard.
+- [x] Collection widget `c1` not in `Faceted.Widgets`: eea 16 fires
+      `INITIALIZE` from its own document-ready handler, so a handler bound
+      inside a later ready handler misses it. `collectionwidget/widgets/view.js`,
+      `collective.z3cform.select2` `select2-view.js` and the `custom_b_start`
+      handler in `plonemeeting.js` now bind when the script loads. 14/14
+      widgets register.
+- [x] `collective.z3cform.select2` had no P6 bundles (`initializeSelect2SingleWidget`
+      undefined in the quick upload form): new `profiles/plone6/` registered as
+      `default` under `have plone-60` (bundles `select2-widget`,
+      `faceted-select2-view`, select2 3.4.8 comes from `ftw-labels-select2`),
+      added to `BUNDLE_PRODUCTS` of `migrate_to_4301`.
+- [x] Popups clicked: history (bound on every page now, `contentHistory()`
+      in the popups ready block), add annex, quick upload (real upload of a
+      file through the modal creates the annex with its category), batch
+      action "Changer l'état" (opens, cancel closes). Plone 6.1 modal markup
+      is `.modal-wrapper .modal.show`, not `.plone-modal`.
+- [x] Quick upload chain fixes: `imio.annex` `quick_upload.pt` dropped the
+      P4 `global_defines` macro; `request.get('SESSION')` is `None` without
+      configured sessions (`or {}` in quickupload + imio.annex);
+      `pretty_title_or_id` skin script → `Products.CMFPlone.utils`
+      function (both packages); plone.protect: the uploader now posts the
+      `_authenticator` token (hidden input in `quick_upload.pt`, param in
+      `sendDataAndUpload`); the quick upload modal shows `.quick-uploader`
+      (`content` option, `submit: 'native'`); annex unlock on `hidden` only
+      for `/edit` links.
+- [x] No `<base>` tag on Plone 6: the batch action forms posted to a
+      relative URL that resolved to the parent folder (404). Form action is
+      absolute in `collective.eeafaceted.batchactions` viewlet.
+- [x] `imio.webspellchecker` viewlet rendered `<script src="?t=…">` when
+      `js_bundle_url` is empty (the page loaded itself as a script,
+      `Unexpected token '<'` on every page). Viewlet renders nothing without
+      a bundle URL.
+- [x] Remaining Plone 4 skin images: `spinner_small.gif` (actions panel
+      async placeholder → Bootstrap spinner; `imio.annex` preview status →
+      `hourglass-split.svg`), `file_icon.png` (annex/annexDecision FTI icons
+      and preview → `file-earmark.svg`), `download_icon.png` (FTI download
+      action → `download.svg`). `imio.actionspanel` keeps `++plone++…` icon
+      paths (it kept only the last segment).
+- [x] `AnnexActionsPanelView.showHistoryForContext` walked up parents until
+      `__class__.__name__` was `MeetingItem`/`Meeting`: never true for the DX
+      `MeetingItemRecurring`, crashed the annexes page. Dead walk removed.
+
+**Still to do / not verified:**
+
+- [ ] Class-name checks that miss the DX item subclasses
+      (`MeetingItemTemplate`, `MeetingItemRecurring`; the AT class was
+      `MeetingItem` for all three types): `vocabularies.py` 611 (groups in
+      charge stored terms), 1992 and 2009 (annex category vocabularies,
+      `cfg` lookup), `adapters.py` 1935-1955 (annex viewability through
+      linked items), `utils.py` `getCurrentMeetingObject`. Replace with
+      `isinstance` or a class-name tuple, with tests.
+- [ ] Popups not exercised (the dev items are all presented, so the links
+      were absent): actions panel transition with comment
+      (`applyWithComments`), duplicate item (`redirect: true`), PDF export
+      (needs LibreOffice), advice add/edit, attendees forms
+      (`onsuccessManageAttendees`). Create an item in creation state on the
+      dev site and run `tools/browser-checks/popups_check2.js` against it.
+- [ ] Theme layout (D.5ter, theme session): on dashboards the searches
+      column (`.faceted-tagscloud-collection-widget` portlet,
+      `#portal-column-one`) stacks above the content instead of beside it;
+      Plone's folder actions render as a button row under the table; on
+      item pages the searches portlet is an unstyled bullet list.
 - [ ] Rich text quick-edit (`initRichTextField`, `saveCKeditor`… in
       `plonemeeting.js`) still calls CKEditor → D.4 TinyMCE item; the
       pencil icon on rich fields is visible but the action will throw.
@@ -350,15 +409,18 @@ has 13 widgets, `testP4ToP6Migration` 21/21 with the new profile files.
 - [ ] `plone.formwidget.masterselect` widget JS and
       `collective.contact.widget` still look up `.overlay-ajax` (P4 overlay
       DOM); harmless until used inside a modal.
+- [ ] `Migrator._before_reinstall` / `_after_reinstall` read
+      `portal_properties.ckeditor_properties`: any migration calling
+      `reinstall()` fails on P6 (CKEditor dropped). Guard or drop.
 - [ ] User's `bin/instance1` must be **restarted** (new ZCML: resource dir,
-      plone6 profiles, jqueryui checkout). Until then it logs
-      "Could not find resource ++resource++plonemeeting.core/…" and has no
-      PM JS (as before). CMFPlone caches the rendered resource list per
+      plone6 profiles, jqueryui checkout, select2 plone6 profile). Until then
+      it logs "Could not find resource ++resource++plonemeeting.core/…" and
+      has no PM JS (as before). CMFPlone caches the rendered resource list per
       process: registry changes made from another process need a restart.
-- [ ] Dependency WIP is uncommitted in `src/` (convention); snapshots
-      regenerated in `patches/src-wip/*.patch` (11 packages, incl. new
-      `collective.js.jqueryui`, `collective.js.iframeresizer`,
-      `collective.iconifiedcategory`). Upstream PRs still to open.
+- [ ] Dependency WIP is uncommitted in `src/` (convention); snapshots in
+      `patches/src-wip/*.patch` (13 packages, incl. new
+      `collective.quickupload`, `imio.webspellchecker`,
+      `collective.z3cform.select2`). Upstream PRs still to open.
 
 ### D.5ter — Skin against the design mockups
 

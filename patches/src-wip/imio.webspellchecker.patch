@@ -1,0 +1,17 @@
+# imio.webspellchecker @ master fd1c04e
+diff --git a/src/imio/webspellchecker/browser/viewlet.py b/src/imio/webspellchecker/browser/viewlet.py
+index 65c3a42..043eaee 100644
+--- a/src/imio/webspellchecker/browser/viewlet.py
++++ b/src/imio/webspellchecker/browser/viewlet.py
+@@ -33,7 +33,10 @@ class WscJsViewlet(ViewletBase):
+     def index(self):
+         registry = getUtility(IRegistry)
+         settings = registry.forInterface(IWebspellcheckerControlPanelSchema, check=False)
+-        if settings.enabled and self.is_allowed_portal_type(settings) and not self.is_disallowed_portal_type(settings):
++        # without a bundle URL the script tag points at the current page
++        if not settings.enabled or not settings.js_bundle_url:
++            return ""
++        if self.is_allowed_portal_type(settings) and not self.is_disallowed_portal_type(settings):
+             return WSC_SCRIPTS_TEMPLATE.format(
+                 plonesite=api.portal.get().absolute_url(),
+                 timestamp=api.portal.get_registry_record("imio.webspellchecker.scripts_timestamp"),

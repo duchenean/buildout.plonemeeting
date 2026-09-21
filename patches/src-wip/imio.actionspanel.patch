@@ -38,6 +38,19 @@ index 035e4df..04b2282 100644
  
          <tal:comment replace="nothing">Button</tal:comment>
          <form tal:condition="python: not useIcons">
+diff --git a/src/imio/actionspanel/browser/actions_panel_viewlet.pt b/src/imio/actionspanel/browser/actions_panel_viewlet.pt
+index 8a262f1..15fcf87 100644
+--- a/src/imio/actionspanel/browser/actions_panel_viewlet.pt
++++ b/src/imio/actionspanel/browser/actions_panel_viewlet.pt
+@@ -2,7 +2,7 @@
+      id="async_actions_panel"
+      data-use-icons="false"
+      data-show-edit="false">
+-    <img tal:attributes="src string:${view/site_url}/spinner_small.gif" />
++    <span class="spinner-border spinner-border-sm" role="status"></span>
+ </div>
+ 
+ <tal:renderViewlet condition="python: not view.is_async and view.show()"
 diff --git a/src/imio/actionspanel/browser/static/actionspanel.js b/src/imio/actionspanel/browser/static/actionspanel.js
 index 728915c..ae11f39 100644
 --- a/src/imio/actionspanel/browser/static/actionspanel.js
@@ -90,10 +103,20 @@ index 728915c..ae11f39 100644
  
    // refresh faceted if we are on it, else, let the view manage redirect
 diff --git a/src/imio/actionspanel/browser/views.py b/src/imio/actionspanel/browser/views.py
-index 92dd26f..1b443f2 100644
+index 92dd26f..435759c 100644
 --- a/src/imio/actionspanel/browser/views.py
 +++ b/src/imio/actionspanel/browser/views.py
-@@ -587,6 +587,9 @@ class ActionsPanelView(BrowserView):
+@@ -582,11 +582,17 @@ class ActionsPanelView(BrowserView):
+                 # path including portal_url or so, just take care that we do not have
+                 # an image in a static resource folder
+                 splittedIconPath = act['icon'].split('/')
+-                if len(splittedIconPath) > 1 and '++resource++' in splittedIconPath[-2]:
+-                    # keep last 2 parts of the path
++                if len(splittedIconPath) > 1 and (
++                        '++resource++' in splittedIconPath[-2] or
++                        splittedIconPath[-2].startswith('++plone++')):
++                    # keep last 2 parts of the path, the image is in a
++                    # browser resource directory or a Plone 6 static directory
                      act['icon'] = '/'.join((splittedIconPath[-2], splittedIconPath[-1], ))
                  else:
                      act['icon'] = splittedIconPath[-1]

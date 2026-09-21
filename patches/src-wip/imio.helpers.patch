@@ -1,4 +1,174 @@
 # imio.helpers @ master 5b387a7
+diff --git a/src/imio/helpers/browser/static/helpers.js b/src/imio/helpers/browser/static/helpers.js
+index 393ee7f..cf430a8 100644
+--- a/src/imio/helpers/browser/static/helpers.js
++++ b/src/imio/helpers/browser/static/helpers.js
+@@ -84,12 +84,9 @@ function toggleDetails(id, toggle_parent_active=true, parent_tag=null, load_view
+   }
+ }
+ 
+-// function that will configure a simple overlay that may be closed whenever clicking outside
++// Information popups. The user can close them with a click outside.
+ function infoOverlays(tag=null) {
+-    $('a.link-overlay-info', tag).prepOverlay({
+-    subtype: 'ajax',
+-    closeselector: '[name="form.buttons.cancel"]',
+-});
++    imio_modal($('a.link-overlay-info', tag), {closeOnBackdrop: true});
+ }
+ // function that will expand a collapsible if asked thru request parameter
+ function expandCollapsible() {
+@@ -192,9 +189,8 @@ $.ajaxTransport("+binary", function (options, originalOptions, jqXHR) {
+ function submitFormHelper(onsuccess=submitFormHelperOnsuccessDefault, onerror=null) {
+     $('input#form-buttons-apply').click(function(event) {
+       event.preventDefault();
+-      // store CKEDITOR instances value into the related textarea widget so it is submitted
+-      textareas = $('textarea.ckeditor_plone', this.form);
+-      textareas.each(function() {this.value = CKEDITOR.instances[this.name].getData();});
++      // store the TinyMCE content into the related textarea widget so it is submitted
++      if (window.tinymce) { tinymce.triggerSave(); }
+       // retrieve form data
+       data = $(this.form).serializeArray();
+       // buttons are not included by serializeArray but we need it
+@@ -298,3 +294,138 @@ function filterByName(event, selector="span.option") {
+     }
+   });
+ }
++
++/* Plone 6 modals.
++   imio_modal(elements, options) binds the plone-modal pattern to links.
++   The modal loads the link target with ajax and shows the "#content" part.
++   options:
++   - content: selector of the part to show, default "#content"
++   - submit: how the modal handles the forms it contains:
++       "modal" (default): ajax submit, then close and refresh the page
++       "helper": the page script binds the submit, see submitFormHelper
++       "native": the browser submits the form
++   - redirect: true follows the redirect of a successful submit,
++       false (default) refreshes the current page or the faceted results
++   - closeOnBackdrop: close when the user clicks outside, default false
++   - afterRender(modal, element), shown(modal, element),
++     hidden(modal, element): callbacks
++   - modalOptions: extra plone-modal options */
++function imio_modal_pattern() {
++  var registry = window.__patternslib_registry;
++  return registry ? registry['plone-modal'] : null;
++}
++
++// Refresh the faceted results when there are some, else reload the page.
++function imio_modal_refresh() {
++  if (typeof has_faceted === 'function' && has_faceted()) {
++    Faceted.URLHandler.hash_changed();
++  }
++  else {
++    window.location.href = window.location.href;
++  }
++}
++
++// Return the element that opened the modal that contains element, or null.
++function imio_modal_trigger(element) {
++  var content = $(element).closest('.modal-content');
++  return content.length ? (content.data('imio-modal-trigger') || null) : null;
++}
++
++function imio_modal_options(settings) {
++  var actions = {};
++  actions['[name="form.buttons.cancel"]'] = {modalFunction: 'hide'};
++  var modalOptions = {
++    content: settings.content,
++    actions: actions,
++    automaticallyAddButtonActions: settings.submit === 'modal',
++    backdropOptions: {closeOnEsc: true, closeOnClick: settings.closeOnBackdrop},
++    actionOptions: {
++      displayInModal: false,
++      reloadWindowOnClose: false,
++      redirectOnResponse: settings.redirect,
++      onSuccess: function () {
++        if (!settings.redirect) { imio_modal_refresh(); }
++      }
++    }
++  };
++  return $.extend(true, modalOptions, settings.modalOptions);
++}
++
++function imio_modal_bind_events(modal, element, settings) {
++  $(element).on('after-render.plone-modal.patterns', function () {
++    var content = modal.$modalContent;
++    content.data('imio-modal-trigger', element);
++    // TinyMCE writes its content to the textarea before an ajax submit
++    content[0].addEventListener('click', function (event) {
++      if (window.tinymce && $(event.target).is('[type="submit"]')) {
++        tinymce.triggerSave();
++      }
++    }, true);
++    if (settings.afterRender) { settings.afterRender(modal, element); }
++  });
++  if (settings.shown) {
++    $(element).on('shown.plone-modal.patterns', function () { settings.shown(modal, element); });
++  }
++  if (settings.hidden) {
++    $(element).on('hidden.plone-modal.patterns', function () { settings.hidden(modal, element); });
++  }
++}
++
++var IMIO_MODAL_DEFAULTS = {
++  content: '#content',
++  submit: 'modal',
++  redirect: false,
++  closeOnBackdrop: false,
++  afterRender: null,
++  shown: null,
++  hidden: null,
++  modalOptions: {}
++};
++
++function imio_modal(elements, options) {
++  var Modal = imio_modal_pattern();
++  if (!Modal) { return; }
++  var settings = $.extend({}, IMIO_MODAL_DEFAULTS, options || {});
++  $(elements).each(function () {
++    var element = this;
++    // bind once
++    if (element.imio_modal) { return; }
++    var modal = new Modal(element, imio_modal_options(settings));
++    element.imio_modal = modal;
++    imio_modal_bind_events(modal, element, settings);
++  });
++}
++
++/* Open a modal with the response of a form posted with ajax.
++   The batch actions use it: the form carries the selected uids. */
++function imio_modal_form(form, options) {
++  var Modal = imio_modal_pattern();
++  if (!Modal) { return; }
++  var settings = $.extend({}, IMIO_MODAL_DEFAULTS, {submit: 'helper'}, options || {});
++  var data = $(form).serializeArray();
++  data.push({name: 'ajax_load', value: new Date().getTime()});
++  $.ajax({
++    type: 'POST',
++    url: form.action,
++    data: data,
++    dataType: 'html',
++    cache: false,
++    success: function (html) {
++      // a link without target opens an empty modal that redraw() fills
++      var trigger = document.createElement('a');
++      trigger.href = '#';
++      trigger.style.display = 'none';
++      document.body.appendChild(trigger);
++      var modal = new Modal(trigger, imio_modal_options(settings));
++      imio_modal_bind_events(modal, trigger, settings);
++      $(trigger).on('hidden.plone-modal.patterns', function () { trigger.remove(); });
++      $(trigger).one('after-render.plone-modal.patterns', function () {
++        modal.redraw(html, modal.options);
++      });
++      modal.show();
++    },
++    error: function () {
++      window.location.href = window.location.href;
++    }
++  });
++}
 diff --git a/src/imio/helpers/cache.py b/src/imio/helpers/cache.py
 index 794392d..57931b2 100644
 --- a/src/imio/helpers/cache.py

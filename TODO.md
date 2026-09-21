@@ -18,8 +18,9 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
   end-to-end dry run against a prod copy is left).
 - `src/plonetheme.imioapps` is back: rewritten from scratch on branch
   `plone6` (duchenean fork, see `sources.cfg`); no blocker left.
-- Next: (1) D.6 dry run (needs `make copy-data`), (2) D.4
-  reactivations starting with AMQP / scan_id, (3) D.7 pilot.
+- **D.5bis front-end fixes landed 2026-09-21** (bundles, modal port,
+  icons, jqueryui); see its "Still to do" list, then (1) D.6 dry run
+  (needs `make copy-data`), (2) D.4 reactivations, (3) D.7 pilot.
 
 ---
 
@@ -261,55 +262,99 @@ stack:
 
 ### D.5bis — Front-end resources on Plone 6 (browser audit 2026-09-21)
 
-Tests are green but the pages are not: Plone 6 ignores `jsregistry.xml` /
-`cssregistry.xml`, so every script that was only registered there is
-silently absent. Audit of `searches_items` in Chrome (console, network,
-`Faceted.Widgets`, bundle registry dump):
+Plone 6 ignores `jsregistry.xml` / `cssregistry.xml`, so every script that
+was only registered there was silently absent. Fixed 2026-09-21 (core commit
++ WIP in the dependency checkouts, snapshots in `patches/src-wip/`):
 
-- [ ] **PloneMeeting's own JS is not loaded**: `plonemeeting.js`,
-      `plonemeetingpopups.js` (skin layer `plonemeeting_styles`) and the
-      `plonemeeting_javascript_variables.js` view have no
-      `plone.bundles/*` record. Register bundles in
-      `profiles/default/registry.xml` (pattern: z3ctable's
-      `faceted-vars-z3ctable`, bare skin/view names work as
-      `jscompilation`). `plonemeetingpopups.js` calls `prepOverlay`
-      11 times (plone.app.jquerytools, gone) → port to `pat-plone-modal`.
-- [ ] **Same for dependencies without bundles**: `imio.actionspanel`
-      (`actionspanel.js` + `actions_panel_javascript_variables.js`:
-      `applyWithComments`, `confirmDeleteObject`, `triggerTransition` are
-      undefined → table action buttons are dead), `ftw.labels`,
-      `imio.annex` quickupload helpers, `imio.dashboard`,
-      `collective.js.iframeresizer`, `collective.js.tablednd`.
-- [ ] **`collective.eeafaceted.collectionwidget`**: `plone5` profile bundle
-      `faceted-collectionwidget` points at the never-shipped
-      `++plone++static/faceted-collectionwidget.min.css` (404) and the
-      widget JS (`widgets/view.js`, `edit.js`) is only added to the dead
-      `plone.resources/*` records → widget `c1` is not registered in
-      `Faceted.Widgets`, the left-hand searches list does nothing on
-      click. Add a `plone6` profile (`zcml:condition="have plone-60"`, as
-      in z3ctable) with `++resource++` paths.
-- [ ] **`collective.eeafaceted.dashboard`**: same 404 pattern for
-      `faceted-dashboard.min.js/.css` → `generatePodDocument` undefined
-      (POD export from dashboards broken). Same fix.
-- [ ] **`collective.js.jqueryui` 2.2.0 is broken on Py3**:
-      `resources.py` builds ids with `tpl.format(plugin)` on a `%s`
-      template → 31 `KeyError 'jquery.%s.min.js'` per request, the custom
-      bundle only contains the i18n file → 76 `$.datepicker.regional`
-      TypeErrors per page, and `fancytree` (bundle `depends=jqueryui`)
-      fails to initialise (`$.widget` missing at load). Upstream master
-      still has the bug (last commit 2023). Options: auto-checkout + fix
-      `tpl % plugin`, or drop the package and let jQuery UI come from one
-      global bundle (eea's `faceted-jquery` only loads on faceted pages;
-      `plonemeeting.js` uses `.sortable(`).
-- [ ] **Plone 4 skin icons**: `edit.png`, `delete_icon.png`,
-      `spinner_small.gif` (Plone 4 `plone_images`) referenced by
-      ~20 core templates + `collective.iconifiedcategory` → 404. Ship them
-      in `skins/plonemeeting_images` (where `cancel_edit.png` already
-      lives) or switch to `++plone++bootstrap-icons/*.svg`.
-- [ ] **Stale `portal_skins` layers** from the old theme
-      (`plonemeetingskin_*`, `imioapps_*` DirectoryViews warn at startup)
-      → upgrade step or theme reinstall on the dev site (created
-      2026-05-02, theme profile still at version 2500).
+- [x] **PloneMeeting's own JS/CSS** moved to `browser/static/` (served as
+      `++resource++plonemeeting.core/…`), registered as bundles
+      `plonemeeting-vars`, `plonemeeting`, `plonemeeting-popups` in
+      `registry.xml`. Skin-layer files cannot be bundles (FSFile is not
+      callable by the resource viewlet: whole site 500s). `plonemeeting.css`
+      ported from DTML to plain CSS (Bootstrap/theme custom properties,
+      image URLs `../../<img>` relative to the webresource URL).
+      `plonemeeting_styles` skin layer dropped. `jsregistry.xml` and
+      `cssregistry.xml` deleted. Profile 4300 → **4301**, `migrate_to_4301`
+      re-imports the bundle records of core + dependencies, cleans the bundle
+      registry and removes the obsolete skin layers (old theme +
+      `plonemeeting_styles`). Ran green on the dev site.
+- [x] **Dependency bundles** (WIP, not committed there): `imio.actionspanel`
+      (`actionspanel`, `actionspanel-vars`), `ftw.labels` (`ftw-labels`,
+      `ftw-labels-select2`), `imio.annex` (`imio-annex-quickupload`),
+      `imio.dashboard` (`imio-dashboard`), `collective.js.iframeresizer`.
+- [x] **`collective.eeafaceted.collectionwidget` / `dashboard`**: new
+      `profiles/plone6/` (`zcml:condition="have plone-60"`, z3ctable
+      pattern), bundles on `++resource++` paths, `depends` on eea's
+      `faceted.view` / `faceted.edit` (eea 16.4 names), profile versions
+      3 → 4 and 1 → 2 with `upgradeDepends` on `plone.app.registry`.
+- [x] **eea bundles forced synchronous**: eea 16.4 ships `faceted.*` with
+      `load_async`/`load_defer` True, so `Faceted` was undefined in our
+      document-ready handlers. Core `registry.xml` overrides the three
+      records to False (comment explains why).
+- [x] **collective.js.jqueryui 2.2.0** now an auto-checkout
+      (`sources.cfg`/`dev.cfg`), `tpl % plugin` fix in `resources.py`
+      (upstream master still broken). 31 KeyErrors/request and the 76
+      datepicker TypeErrors are gone; fancytree initialises.
+- [x] **Plone 4 skin icons** → Bootstrap icons (`++plone++bootstrap-icons/…`)
+      in ~20 core templates, `overrides.py`, `content/meetingitem.py`,
+      `collective.iconifiedcategory`, `imio.actionspanel` templates.
+      Object-action icon names (`plone-redirection`) resolved through
+      `@@iconresolver/<name>` in `imio.actionspanel/browser/views.py`.
+- [x] **Overlays → `pat-plone-modal`**: helper `imio_modal()` /
+      `imio_modal_form()` / `imio_modal_trigger()` in
+      `imio.helpers/browser/static/helpers.js` (events `after-render`,
+      `shown`, `hidden`; cancel button → `modalFunction: 'hide'`; ajax
+      submit closes then refreshes faceted or reloads; `redirect: true`
+      follows the response; `submit: 'helper'` for `submitFormHelper`,
+      `'native'` for downloads). Ported: `plonemeetingpopups.js` (all
+      prepOverlay calls, CKEditor code removed), `actionspanel.js`
+      (`initializeOverlays`, `applyWithComments` trigger lookup),
+      `batch_actions.js`, `imio.dashboard.js`, `ftw-labels.js`,
+      `helpers.js` `infoOverlays`. `submitFormHelper` uses
+      `tinymce.triggerSave()`.
+- [x] Cookie helpers `createCookie`/`readCookie` (Plone 4 skin script) added
+      to `plonemeeting.js`.
+
+**Verified** on a private instance (port 8091, same ZEO): dashboard renders
+with theme + PM CSS, all bundles load in dependency order, no `Faceted`
+errors, PM/actionspanel/batchactions functions defined, `Faceted.Widgets`
+has 13 widgets, `testP4ToP6Migration` 21/21 with the new profile files.
+
+**Still to do / not verified:**
+
+- [ ] Two console errors left, both from collective.quickupload not being
+      installed on P6: `helpers.js:268 qq is not defined` (imio.helpers
+      quickupload glue) and `imio.annex.quickupload/helpers.js:1
+      PloneQuickUpload is not defined`. Decide: install
+      `collective.quickupload` (bundles exist in its `default` profile,
+      profile not installed on the dev site) or guard/drop both scripts.
+- [ ] Collection widget `c1` still not registered in `Faceted.Widgets`
+      after the sync-loading fix — check `collectionwidget/widgets/view.js`
+      hooks now that `Faceted` exists at ready time (last browser check ran
+      on a stale document, redo after a real reload on :8091).
+- [ ] Exercise the ported popups in the browser: batch action "Changer
+      l'état" (`imio_modal_form` + `submitFormHelper` + cancel), actions
+      panel transition with comment (`applyWithComments` inside the modal),
+      duplicate item (`redirect: true`), PDF export (`submit: 'native'`),
+      advice add/edit and annex edit (unlock on `hidden`), attendees forms
+      (`onsuccessManageAttendees` uses `modal.redraw`). None clicked yet.
+- [ ] Rich text quick-edit (`initRichTextField`, `saveCKeditor`… in
+      `plonemeeting.js`) still calls CKEditor → D.4 TinyMCE item; the
+      pencil icon on rich fields is visible but the action will throw.
+- [ ] `collective.js.tablednd` (meeting items drag & drop, `tableDnD`) is
+      excluded (removed `includeDependencies` directive): D.4 item.
+- [ ] `plone.formwidget.masterselect` widget JS and
+      `collective.contact.widget` still look up `.overlay-ajax` (P4 overlay
+      DOM); harmless until used inside a modal.
+- [ ] User's `bin/instance1` must be **restarted** (new ZCML: resource dir,
+      plone6 profiles, jqueryui checkout). Until then it logs
+      "Could not find resource ++resource++plonemeeting.core/…" and has no
+      PM JS (as before). CMFPlone caches the rendered resource list per
+      process: registry changes made from another process need a restart.
+- [ ] Dependency WIP is uncommitted in `src/` (convention); snapshots
+      regenerated in `patches/src-wip/*.patch` (11 packages, incl. new
+      `collective.js.jqueryui`, `collective.js.iframeresizer`,
+      `collective.iconifiedcategory`). Upstream PRs still to open.
 
 ### D.6 — Data migration (`collective.exportimport`)
 

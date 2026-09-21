@@ -73,9 +73,35 @@ were re-run and pass (see test status above). The old `python3` branch
 and `patches/src-wip/plonetheme.imioapps.patch` are kept for reference
 only.
 
+## Front-end session (2026-09-21, afternoon)
+
+State, verification and the open list are in `TODO.md` § D.5bis. Key facts
+for whoever picks this up:
+
+- Core commit on `feature/D-plone6-cutover` (profile 4301, bundles,
+  `browser/static/`, CSS port, icons, popups port, `migrate_to_4301`).
+- Dependency checkouts changed (uncommitted, snapshots in
+  `patches/src-wip/`): imio.helpers (modal helper), imio.actionspanel,
+  imio.annex, imio.dashboard, ftw.labels, collective.eeafaceted.{collection
+  widget,dashboard,batchactions}, collective.iconifiedcategory,
+  collective.js.iframeresizer, collective.js.jqueryui (new checkout).
+- The dev site DB already has profile 4301 applied and the bundle records
+  loaded; `bin/instance1` still runs the old ZCML → restart it.
+- To verify without touching the user's instance: copy
+  `parts/instance1/etc/{zope.conf,wsgi.ini}`, change CLIENTHOME, the log
+  paths and `fast-listen` to :8091, run
+  `bin/python parts/instance1/bin/interpreter <Zope egg>/Zope2/Startup/serve.py <wsgi.ini> -d debug-mode=on`.
+  Reload pages with `location.reload()`: navigating to a URL that differs
+  only by its `#hash` does not reload the document.
+- Lesson: never point a bundle `jscompilation`/`csscompilation` at a skin
+  file (FSFile) — the resource viewlet raises and every page 500s.
+
 ## Open threads (priority order)
 
-1. **Re-run `bin/testmc -t test_pm_ItemExportPDFForm`** with the host
+1. **Finish D.5bis** (TODO.md "Still to do": quickupload errors,
+   collection widget registration, click-test the popups), restart
+   `bin/instance1`.
+2. **Re-run `bin/testmc -t test_pm_ItemExportPDFForm`** with the host
    soffice serving on :2002 (`make libreoffice-local`); the only test
    not seen green in this environment.
 2. **D.6 end-to-end dry run** — the only D.6 box left. Needs a prod copy

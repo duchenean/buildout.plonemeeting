@@ -24,6 +24,23 @@ index 0a27db1..748139f 100644
  
      def _redirect(self):
          response = self.request.RESPONSE
+diff --git a/ftw/labels/browser/resources/ftw-labels.js b/ftw/labels/browser/resources/ftw-labels.js
+index 6ad217f..9fabf3f 100644
+--- a/ftw/labels/browser/resources/ftw-labels.js
++++ b/ftw/labels/browser/resources/ftw-labels.js
+@@ -50,11 +50,7 @@ $(document).ready(function(){
+     tabbedview.reload_view();
+   });
+ 
+-  $('.labelListing .editLabelLink').prepOverlay({
+-    subtype: 'ajax',
+-    width: '235px',
+-    noform: function(el) {return $.plonepopups.noformerrorshow(el, 'close');}
+-  });
++  imio_modal('.labelListing .editLabelLink');
+ 
+   $('.pers-edit-1').click(function(){
+     var $label = $(this)
 diff --git a/ftw/labels/configure.zcml b/ftw/labels/configure.zcml
 index a14fc79..004a7ec 100644
 --- a/ftw/labels/configure.zcml
@@ -124,6 +141,37 @@ index 774d554..5b3fe80 100644
  
      @property
      def title(self):
+diff --git a/ftw/labels/profiles/default/registry.xml b/ftw/labels/profiles/default/registry.xml
+new file mode 100644
+index 0000000..9fb6030
+--- /dev/null
++++ b/ftw/labels/profiles/default/registry.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0"?>
++<registry>
++
++<!-- Plone 6 loads scripts and styles from these bundle records. -->
++  <records prefix="plone.bundles/ftw-labels-select2"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">plone</value>
++    <value key="jscompilation">++resource++ftw.labels/select2.min.js</value>
++    <value key="csscompilation">++resource++ftw.labels/select2.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++  <records prefix="plone.bundles/ftw-labels"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">ftw-labels-select2</value>
++    <value key="jscompilation">++resource++ftw.labels/ftw-labels.js</value>
++    <value key="csscompilation">++resource++ftw.labels/ftw-labels.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
 diff --git a/ftw/labels/utils.py b/ftw/labels/utils.py
 index b66ca88..738c42b 100644
 --- a/ftw/labels/utils.py

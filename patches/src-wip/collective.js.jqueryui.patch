@@ -1,0 +1,14 @@
+# collective.js.jqueryui @ master 7347ef8
+diff --git a/src/collective/js/jqueryui/resources.py b/src/collective/js/jqueryui/resources.py
+index 149776f..3a100ce 100644
+--- a/src/collective/js/jqueryui/resources.py
++++ b/src/collective/js/jqueryui/resources.py
+@@ -181,7 +181,7 @@ class JQueryUICustomJS(Resources):
+             if plugin not in wanted:
+                 ordered_plugins.remove(plugin)
+         for plugin in ordered_plugins:
+-            resources.append(tpl.format(plugin))
++            resources.append(tpl % plugin)
+             if plugin == "ui.datepicker":
+                 resources.append("++resource++jquery-ui-i18n.js")
+         return resources

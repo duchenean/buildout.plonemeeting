@@ -33,6 +33,27 @@ index 309dd30..0bbf71d 100644
          if description:
              description = u'<p class="discreet">{0}</p>'.format(description)
  
+diff --git a/src/imio/annex/profiles/default/registry.xml b/src/imio/annex/profiles/default/registry.xml
+new file mode 100644
+index 0000000..2017426
+--- /dev/null
++++ b/src/imio/annex/profiles/default/registry.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0"?>
++<registry>
++
++<!-- Plone 6 loads scripts and styles from these bundle records. -->
++  <records prefix="plone.bundles/imio-annex-quickupload"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">iconifiedcategory</value>
++    <value key="jscompilation">++resource++imio.annex.quickupload/helpers.js</value>
++    <value key="csscompilation">++resource++imio.annex.quickupload/quickupload.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
 diff --git a/src/imio/annex/utils.py b/src/imio/annex/utils.py
 index 7a6f611..8e7fb2e 100644
 --- a/src/imio/annex/utils.py

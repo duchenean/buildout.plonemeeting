@@ -1,4 +1,29 @@
 # collective.eeafaceted.batchactions @ python3 43d1f7c
+diff --git a/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js b/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js
+index 0b7f202..806b1b2 100644
+--- a/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js
++++ b/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js
+@@ -38,16 +38,10 @@ collective_batch_actions.init_button = function () {
+ };
+ 
+ collective_batch_actions.initializeOverlays = function (ba_form) {
+-    // Add batch actions popup
+-    $(ba_form).prepOverlay({
+-        api: true,
+-        subtype: 'ajax',
+-        closeselector: '[name="form.buttons.cancel"]',
+-        config: {
+-            onBeforeLoad : function (e) {
+-                submitFormHelper(this.form);
+-                return true;
+-            },
++    // Open the batch action form in a popup, submitFormHelper submits it
++    imio_modal_form(ba_form, {
++        afterRender: function (modal, trigger) {
++            submitFormHelper();
+         }
+     });
+ };
 diff --git a/src/collective/eeafaceted/batchactions/profiles.zcml b/src/collective/eeafaceted/batchactions/profiles.zcml
 index 8b77e95..e98b74d 100644
 --- a/src/collective/eeafaceted/batchactions/profiles.zcml

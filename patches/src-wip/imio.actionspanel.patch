@@ -1,4 +1,108 @@
 # imio.actionspanel @ plone6 5a44e31
+diff --git a/src/imio/actionspanel/browser/actions_panel_edit.pt b/src/imio/actionspanel/browser/actions_panel_edit.pt
+index 7fbf1de..32c3e78 100644
+--- a/src/imio/actionspanel/browser/actions_panel_edit.pt
++++ b/src/imio/actionspanel/browser/actions_panel_edit.pt
+@@ -6,7 +6,7 @@
+                      class python: view.kwargs.get('edit_action_class', '');
+                      target python: view.kwargs.get('edit_action_target', '_parent');"
+      target="_parent">
+-    <img src="edit.gif" tal:attributes="src string:${view/portal_url}/edit.png" title="Edit" i18n:attributes="title" />
++    <img src="edit.gif" tal:attributes="src string:${view/portal_url}/++plone++bootstrap-icons/pencil.svg" title="Edit" i18n:attributes="title" />
+   </a>
+   <tal:comment replace="nothing">Button</tal:comment>
+   <form tal:condition="not: useIcons"
+diff --git a/src/imio/actionspanel/browser/actions_panel_own_delete.pt b/src/imio/actionspanel/browser/actions_panel_own_delete.pt
+index 49824fa..388d27b 100644
+--- a/src/imio/actionspanel/browser/actions_panel_own_delete.pt
++++ b/src/imio/actionspanel/browser/actions_panel_own_delete.pt
+@@ -5,7 +5,7 @@
+     <td class="noPadding" i18n:domain="plone" tal:define="dummy view/saveHasActions;">
+       <tal:comment replace="nothing">Icon</tal:comment>
+       <img tal:condition="useIcons" i18n:attributes="title" title="Delete"
+-           tal:attributes="src string:${view/portal_url}/delete_icon.png;
++           tal:attributes="src string:${view/portal_url}/++plone++bootstrap-icons/trash.svg;
+                            onClick string:javascript:confirmDeleteObject(base_url='${context/absolute_url}', object_uid='${objectUID}', this, msgName=null, view_name='@@delete_givenuid', redirect=null);;"
+            onClick="#" style="cursor:pointer"/>
+ 
+diff --git a/src/imio/actionspanel/browser/actions_panel_own_delete_with_comments.pt b/src/imio/actionspanel/browser/actions_panel_own_delete_with_comments.pt
+index 035e4df..04b2282 100644
+--- a/src/imio/actionspanel/browser/actions_panel_own_delete_with_comments.pt
++++ b/src/imio/actionspanel/browser/actions_panel_own_delete_with_comments.pt
+@@ -10,7 +10,7 @@
+         <img tal:condition="useIcons"
+              i18n:attributes="title"
+              title="Delete"
+-             tal:attributes="src string:${view/portal_url}/delete_icon.png;" />
++             tal:attributes="src string:${view/portal_url}/++plone++bootstrap-icons/trash.svg;" />
+ 
+         <tal:comment replace="nothing">Button</tal:comment>
+         <form tal:condition="python: not useIcons">
+diff --git a/src/imio/actionspanel/browser/static/actionspanel.js b/src/imio/actionspanel/browser/static/actionspanel.js
+index 728915c..ae11f39 100644
+--- a/src/imio/actionspanel/browser/static/actionspanel.js
++++ b/src/imio/actionspanel/browser/static/actionspanel.js
+@@ -10,24 +10,12 @@ function confirmDeleteObject(base_url, object_uid, tag, msgName=null, view_name=
+ 
+ initializeOverlays = function () {
+     jQuery(function($) {
+-        // WF transition confirmation popup
+-        $('a.link-overlay-actionspanel.transition-overlay').prepOverlay({
+-              subtype: 'ajax',
+-              closeselector: '[name="form.buttons.cancel"]',
+-        });
++        // WF transition confirmation popup, the page script submits the comment
++        imio_modal('a.link-overlay-actionspanel.transition-overlay', {submit: 'native'});
+         // Delete comments popup
+-        $('a.link-overlay-actionspanel.delete-comments-overlay').prepOverlay({
+-              subtype: 'ajax',
+-              closeselector: '[name="form.buttons.cancel"]',
+-        });
++        imio_modal('a.link-overlay-actionspanel.delete-comments-overlay', {submit: 'native'});
+         // Content history popup
+-        $('a.overlay-history').prepOverlay({
+-           subtype: 'ajax',
+-           filter: 'h2, #content-history',
+-           cssclass: 'overlay-history',
+-           urlmatch: '@@historyview',
+-           urlreplace: '@@contenthistorypopup'
+-        });
++        imio_modal('a.overlay-history', {closeOnBackdrop: true});
+     });
+ };
+ 
+@@ -54,11 +42,12 @@ function applyWithComments(baseUrl, viewName, extraData, tag, force_redirect=0,
+   comment = '';
+   if ($('form#commentsForm textarea').length) {
+       comment = $('form#commentsForm textarea')[0].value;
+-      // find the right tag because we are in an overlay and the tag will
+-      // never be found like being in a faceted
+-      // find the button that opened this overlay
+-      overlay_id = $(tag).closest('div.overlay-ajax').attr('id');
+-      tag = $('[rel="#' + overlay_id + '"]');
++      // we are in a popup, use the link that opened it as tag
++      // so it is found like being in a faceted
++      trigger = imio_modal_trigger(tag);
++      if (trigger) {
++          tag = $(trigger);
++      }
+   }
+ 
+   // refresh faceted if we are on it, else, let the view manage redirect
+diff --git a/src/imio/actionspanel/browser/views.py b/src/imio/actionspanel/browser/views.py
+index 92dd26f..1b443f2 100644
+--- a/src/imio/actionspanel/browser/views.py
++++ b/src/imio/actionspanel/browser/views.py
+@@ -587,6 +587,9 @@ class ActionsPanelView(BrowserView):
+                     act['icon'] = '/'.join((splittedIconPath[-2], splittedIconPath[-1], ))
+                 else:
+                     act['icon'] = splittedIconPath[-1]
++                if '.' not in act['icon']:
++                    # a Plone 6 icon name, the icon resolver serves it
++                    act['icon'] = '@@iconresolver/{0}'.format(act['icon'])
+             res.append(act)
+         return res
+ 
 diff --git a/src/imio/actionspanel/events.py b/src/imio/actionspanel/events.py
 index f1d7e48..b84183a 100644
 --- a/src/imio/actionspanel/events.py
@@ -15,3 +119,33 @@ index f1d7e48..b84183a 100644
  from imio.actionspanel.interfaces import IContentDeletable
  
  
+diff --git a/src/imio/actionspanel/profiles/default/registry.xml b/src/imio/actionspanel/profiles/default/registry.xml
+index 32ab1dd..a38ee99 100644
+--- a/src/imio/actionspanel/profiles/default/registry.xml
++++ b/src/imio/actionspanel/profiles/default/registry.xml
+@@ -3,4 +3,25 @@
+     <records interface="imio.actionspanel.browser.registry.IImioActionsPanelConfig">
+     </records>
+ 
++  <!-- Plone 6 loads scripts and styles from these bundle records. -->
++  <records prefix="plone.bundles/actionspanel"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">plone,imio-helpers</value>
++    <value key="jscompilation">++resource++imio.actionspanel/actionspanel.js</value>
++    <value key="csscompilation">++resource++imio.actionspanel/actionspanel.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++  <records prefix="plone.bundles/actionspanel-vars"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">actionspanel</value>
++    <value key="jscompilation">actions_panel_javascript_variables.js</value>
++    <value key="csscompilation"></value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
+ </registry>

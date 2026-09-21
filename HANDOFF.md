@@ -51,14 +51,14 @@ buildout (`feature/D-plone6-cutover`):
   2 unit tests; only the 16 layer-free tests could be re-run after it
   (16/16), the 5 layer tests are blocked by the incident below. Re-run
   the whole module once the checkout is back.
-- **communes full suite**: launched after the import-step fix
-  (`/tmp/pm_next_logs/testmc_full.log`, `bin/testmc --layer='!.*Robot.*'`,
-  host soffice up). It was still running when this file was written:
-  check the tail of that log first. The import-step fix makes the layer
-  setup deterministic (Folders under the tool always get the one-state
-  workflow now), which could surface tests that only passed on the
-  "wrong" ordering. Before the fix the previous session measured
-  939/0F/0E.
+- **communes full suite after the import-step fix: 939 tests,
+  0 failures, 1 error, 12 skipped** (`/tmp/pm_next_logs/testmc_full.log`,
+  `bin/testmc --layer='!.*Robot.*'`, 41 min). The one error is
+  `test_pm_ItemExportPDFForm`: "Couldn't connect to LibreOffice on port
+  2002" (soffice was not serving during the run), the same
+  environment-only error as in the previous session. Identical to the
+  pre-fix baseline, so the deterministic layer setup (Folders under the
+  tool always get the one-state workflow now) surfaced nothing.
 - `bin/test -m testToolPloneMeeting` could NOT run after the folder-init
   refactor: see the `plonetheme.imioapps` incident below. Indirect
   coverage exists: the 19 migration tests create items after the
@@ -88,9 +88,9 @@ git apply ../../patches/src-wip/plonetheme.imioapps.patch   # the P6 WIP (12 del
 
 ## Open threads (priority order)
 
-1. **Decide about `src/plonetheme.imioapps`** (incident above), then read
-   the communes log and fix anything the deterministic layer setup
-   surfaced; run `bin/test -m testToolPloneMeeting`.
+1. **Decide about `src/plonetheme.imioapps`** (incident above), then run
+   `bin/test -m testToolPloneMeeting`, `bin/test -m testP4ToP6Migration`
+   and `bin/testmc -t test_pm_ItemExportPDFForm` with soffice serving.
 2. **D.6 end-to-end dry run** — the only D.6 box left. Needs a prod copy
    (`make copy-data server=<host> buildout=<cfg>`), a 4.3 buildout with
    `collective.exportimport = 1.16` / `plone.restapi = 7.9.1`, then the

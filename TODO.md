@@ -10,16 +10,16 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 
 ## Next session pickup
 
-**Read [`HANDOFF.md`](HANDOFF.md)** — full state of the 2026-07-03 session.
+**Read [`HANDOFF.md`](HANDOFF.md)** — full state of the 2026-09-21 session.
 
-- D.1–D.3 done, D.4 partial, D.5 done (communes 939/0F/0E; restapi 93/95),
-  D.6 milestone 1 landed.
-- **communes: 939 tests, 0 failures, 0 errors** (all 3 ordering leaks
-  fixed; the appy PDF test is green with LibreOffice up). D.5 done.
-- **restapi: 94 red → 2 red; sweep committed (plone6 `8123b56`).**
-  2 residuals deferred (vocab i18n msgid, search-count ordering) — see
-  HANDOFF.md §1.
-- Next: (1) restapi 2 residuals, (2) D.6 data-migration open points.
+- D.1–D.3 done, D.4 partial, **D.5 done on all packages** (communes
+  939/0F/0E, restapi 95/95), **D.6 code complete** (only the end-to-end
+  dry run against a prod copy is left).
+- Blocking: `src/plonetheme.imioapps` was left on an empty orphan branch
+  on 2026-09-21 (see HANDOFF.md) — every new test process fails ZCML
+  loading until it is restored or stubbed.
+- Next: (1) plonetheme.imioapps decision + reruns listed in HANDOFF.md,
+  (2) D.6 dry run (needs `make copy-data`), (3) D.4 reactivations.
 
 ---
 
@@ -250,7 +250,9 @@ stack:
 - [x] `plonemeeting.core` test suite green on Plone 6.1 / Py 3.12
       (exercised via the communes full suite, which extends core).
 - [x] `plonemeeting.communes` test suite green — 939 tests, 0 failures,
-      0 errors (with LibreOffice up for the appy PDF test).
+      0 errors (with LibreOffice up for the appy PDF test); re-verified
+      2026-09-21 after the import-step ordering fix (939/0F/1E, the error
+      being the appy PDF test without LibreOffice).
 - [x] `plonemeeting.restapi` integration tests: 95/95 green. The two
       residuals were core bugs: item attribute titles built from a
       synthetic msgid (`get_dx_attrs`), and the `PloneMeeting-postInstall`

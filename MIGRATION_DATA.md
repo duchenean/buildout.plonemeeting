@@ -10,19 +10,72 @@ Import-side code lives in
 ZCML condition). Field mappings: `mappings.py`; hooks:
 `import_content.py`; invariant tests: `tests/testP4ToP6Migration.py`.
 
-## 1. Export side (old 4.3 buildout, Python 2.7)
+## 1. Export side (a Plone 4.3 / Python 2.7 buildout)
 
-Add to the 4.3 buildout (`versions.cfg`):
+The export runtime must still have the **full 4.2 stack**: every class
+stored in the production ZODB has to be importable. The slimmed master
+of this buildout (no SOAP, no AMQP, no async, no cron4plone) is not
+suitable. Use a throwaway clone at the last commit before the Stage A
+slimming, and keep the production database copy read-only:
 
-```ini
-collective.exportimport = 1.16   # last line still supports Plone 4.3 / py2 export
-plone.restapi = 7.9.1            # last py2 line; >= 7.7.0 needed for AT versions export
-plone.rest = 3.0.0
-PyJWT = 1.7.1
+```sh
+git clone <buildout.pm> pm42_export && cd pm42_export
+git checkout -b export-p43 <last full-stack commit>
+cp <prod copy>/filestorage/<site>.fs var/filestorage/   # work on a copy
+virtualenv -p python2 . && bin/python bin/pip install -r requirements.txt
+bin/python bin/buildout -c export-p43.cfg
 ```
 
-Add `collective.exportimport` to instance eggs, run buildout, restart.
-No GenericSetup install needed (views register on the site root).
+`export-p43.cfg` extends the production profile cfg and adds one part:
+
+```ini
+[buildout]
+extends = communes.cfg
+parts = instance-export
+# the export egg pulls unpinned dependencies
+allow-picked-versions = true
+
+[instance-export]
+recipe = plone.recipe.zope2instance
+zeo-client = false
+file-storage = ${buildout:directory}/var/filestorage/<site>.fs
+blob-storage = <prod copy>/blobstorage-<site>
+zcml-additional =
+# imio.zamqp.pm builds its consumer utility at ZCML load time and reads
+# this product-config. The values are dummies, nothing connects.
+zope-conf-additional =
+  <product-config imio.zamqp.core>
+      client_id       019999
+      routing_key     019999
+      ws_url          http://localhost:6543
+      ws_login        testuser
+      ws_password     test
+  </product-config>
+environment-vars =
+    COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY ${buildout:directory}/var/export
+eggs =
+    ${instance1:eggs}
+    collective.exportimport
+zcml =
+    ${instance1:zcml}
+
+[versions]
+collective.exportimport = 1.16
+# collective.exportimport 1.16 needs pyrsistent < 0.16
+pyrsistent = 0.15.7
+```
+
+Notes on that part:
+
+- `zcml = ${instance1:zcml}` matters. A shorter list changes the load
+  order of the `Products.PloneMeeting` overrides and the startup then
+  fails on ZCML conflicts.
+- `plone.restapi` 7.8.2 is enough. The runbook asked for 7.9.1 for the
+  versions export, and versions are dropped, so leave `plone.rest` at
+  the version the 4.2 stack pins.
+- No GenericSetup install is needed: the export views register on the
+  site root.
+
 
 ### Export sequence (as admin)
 
@@ -34,15 +87,21 @@ No GenericSetup install needed (views register on the site root).
    **and** `extra_state.py` (same directory) to the 4.3 server, then:
 
    ```sh
-   # every portal type that has content, one JSON file
-   bin/instance -O Plone run export_p43.py
+   # every portal type that has content
+   PM_EXPORT_SITE_ID=demo/demo bin/instance-export run $(pwd)/export_p43.py
    # or an explicit list of types
-   bin/instance -O Plone run export_p43.py MeetingConfig MeetingItemCollege MeetingCollege
+   PM_EXPORT_SITE_ID=demo/demo bin/instance-export run $(pwd)/export_p43.py \
+       MeetingConfig MeetingItemCollege MeetingCollege
    ```
 
-   Env knobs: `PM_EXPORT_SITE_ID` (default `Plone`), `PM_EXPORT_FILENAME`
-   (default `pm_content.json`, written to `var/instance/` or to
-   `COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY`). The script uses
+   Give the script an **absolute path**: zopectl runs it as
+   `[interpreter, "-c", <script>, <args>]`, so a relative name does not
+   resolve against the current directory.
+
+   Env knobs: `PM_EXPORT_SITE_ID` (default `Plone`, a path such as
+   `demo/demo` when the site is in a mounted database),
+   `PM_EXPORT_FILENAME` (default `pm_content.json`, written to
+   `var/instance/` or to `COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY`). The script uses
    `include_blobs=2` (blob paths, JSON stays small; the import resolves
    them against the old blobstorage), `migration=False` (the
    "modify for migrations" option drops relation fields; our import hooks
@@ -73,40 +132,31 @@ No GenericSetup install needed (views register on the site root).
    (collective.iconifiedcategory). A value of an unsupported type is
    replaced by `null` and logged as a warning at export time: check the
    export log on the dry run.
-2. `@@export_relations` (contains the `ManuallyLinkedItem` rows we need)
-3. `@@export_members`, `@@export_localroles`, `@@export_ordering`,
-   `@@export_defaultpages`, `@@export_redirects`, `@@export_portlets`
-   (portlets: review — most PM dashboards are faceted, not portlets)
-4. **Tool settings** — `portal_plonemeeting` is not exportable content
-   (OFS tool). Dump it from a debug prompt (`bin/instance debug`) on 4.3:
+2. **Everything that is not content** — copy `export_other_p43.py` to
+   the 4.3 server next to the other two and run it:
 
-```python
-import json
-tool = app.Plone.portal_plonemeeting
-# AT accessor -> DX snake_case attribute; the 12 IToolPloneMeeting
-# fields kept after B.3 (verify each accessor exists on the 4.3 tool —
-# a couple were renamed/introduced during B.3, adapt if AttributeError)
-FIELDS = {
-    'getMeetingFolderTitle': 'meeting_folder_title',
-    'getFunctionalAdminEmail': 'functional_admin_email',
-    'getFunctionalAdminName': 'functional_admin_name',
-    'getRestrictUsers': 'restrict_users',
-    'getUnrestrictedUsers': 'unrestricted_users',
-    'getWorkingDays': 'working_days',
-    'getHolidays': 'holidays',
-    'getDelayUnavailableEndDays': 'delay_unavailable_end_days',
-    'getConfigGroups': 'config_groups',
-    'getDeferParentReindex': 'defer_parent_reindex',
-    'getShowExternalLinksSection': 'show_external_links_section',
-    'getAdvisersConfig': 'advisers_config',
-}
-data = {dx: getattr(tool, at)() for at, dx in FIELDS.items()}
-json.dump(data, open('/tmp/tool.json', 'w'))
-```
+   ```sh
+   PM_EXPORT_SITE_ID=demo/demo bin/instance-export run $(pwd)/export_other_p43.py
+   ```
 
-   The 3 DictRow grids (`holidays`, `config_groups`, `advisers_config`)
-   already use snake_case row keys in DX — check the 4.3 stored row
-   dicts and rename keys in the dump if they differ.
+   With no argument it writes `tool.json`, `relations.json`,
+   `members.json`, `localroles.json`, `ordering.json`,
+   `defaultpages.json`, `redirects.json` and `portlets.json`. Name one
+   or more exports to run only those. It aborts the transaction at the
+   end.
+
+   - `relations.json` holds the `ManuallyLinkedItem` rows that step 7 of
+     the import needs, plus the contact `position` and `voting_group`
+     rows. The contact ones also travel as relation fields in the
+     content, so the content import restores them.
+   - `tool.json` holds the 12 `portal_plonemeeting` fields, under their
+     Dexterity names. `portal_plonemeeting` is a tool, not content, so
+     `collective.exportimport` cannot export it. The script warns about
+     an accessor the 4.3 tool does not have, and logs the row keys of
+     the `holidays`, `config_groups` and `advisers_config` grids: check
+     them against the Dexterity `DictRow` keys.
+   - Portlets: review the result. Most PM dashboards are faceted, not
+     portlets.
 
 Copy to the new server: the JSON files **and** `var/blobstorage`
 (read-only is fine).
@@ -193,5 +243,18 @@ Fresh site prep, in order:
   `include_revisions`; `@@export_content` versions are not needed, so the
   plone.restapi ≥ 7.7.0 constraint on the 4.3 side only matters for the
   serializers themselves.
-- End-to-end dry run against a real 4.3 export (needs a prod copy:
-  `make copy-data server=<host> buildout=<cfg>`; none exists locally).
+- End-to-end dry run against a real 4.3 export. **Export half done**
+  (2026-09-22) on a copy of the `delib42` demo production instance:
+  13847 catalog objects, 7 MeetingConfigs (college, council,
+  bourgmestre, bp, cas, cppt, codir), 1.3 GB of blobs. The export
+  runtime is the throwaway buildout described in section 1. A first
+  pass over the configuration content plus the whole `bourgmestre`
+  config (775 objects, 19 types) exports with **no error**: every entry
+  has `parent`, all 775 carry `pm_extra_state`, 472 carry a workflow
+  history. Import half not run yet.
+  - `imio.esign` is not in the P6 stack. Its browser layer comes back
+    as a broken class and is skipped, so whatever the esign serializers
+    would add is not exported. Decide whether the pilot sites need it.
+  - `config_groups` and `advisers_config` are empty on the demo, so
+    their `DictRow` row keys are still unverified. `holidays` rows use
+    the key `date`.

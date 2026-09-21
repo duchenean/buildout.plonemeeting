@@ -259,6 +259,58 @@ stack:
       import step racing the `workflow` step (GenericSetup sorts
       unconstrained steps from a set → PYTHONHASHSEED-dependent).
 
+### D.5bis — Front-end resources on Plone 6 (browser audit 2026-09-21)
+
+Tests are green but the pages are not: Plone 6 ignores `jsregistry.xml` /
+`cssregistry.xml`, so every script that was only registered there is
+silently absent. Audit of `searches_items` in Chrome (console, network,
+`Faceted.Widgets`, bundle registry dump):
+
+- [ ] **PloneMeeting's own JS is not loaded**: `plonemeeting.js`,
+      `plonemeetingpopups.js` (skin layer `plonemeeting_styles`) and the
+      `plonemeeting_javascript_variables.js` view have no
+      `plone.bundles/*` record. Register bundles in
+      `profiles/default/registry.xml` (pattern: z3ctable's
+      `faceted-vars-z3ctable`, bare skin/view names work as
+      `jscompilation`). `plonemeetingpopups.js` calls `prepOverlay`
+      11 times (plone.app.jquerytools, gone) → port to `pat-plone-modal`.
+- [ ] **Same for dependencies without bundles**: `imio.actionspanel`
+      (`actionspanel.js` + `actions_panel_javascript_variables.js`:
+      `applyWithComments`, `confirmDeleteObject`, `triggerTransition` are
+      undefined → table action buttons are dead), `ftw.labels`,
+      `imio.annex` quickupload helpers, `imio.dashboard`,
+      `collective.js.iframeresizer`, `collective.js.tablednd`.
+- [ ] **`collective.eeafaceted.collectionwidget`**: `plone5` profile bundle
+      `faceted-collectionwidget` points at the never-shipped
+      `++plone++static/faceted-collectionwidget.min.css` (404) and the
+      widget JS (`widgets/view.js`, `edit.js`) is only added to the dead
+      `plone.resources/*` records → widget `c1` is not registered in
+      `Faceted.Widgets`, the left-hand searches list does nothing on
+      click. Add a `plone6` profile (`zcml:condition="have plone-60"`, as
+      in z3ctable) with `++resource++` paths.
+- [ ] **`collective.eeafaceted.dashboard`**: same 404 pattern for
+      `faceted-dashboard.min.js/.css` → `generatePodDocument` undefined
+      (POD export from dashboards broken). Same fix.
+- [ ] **`collective.js.jqueryui` 2.2.0 is broken on Py3**:
+      `resources.py` builds ids with `tpl.format(plugin)` on a `%s`
+      template → 31 `KeyError 'jquery.%s.min.js'` per request, the custom
+      bundle only contains the i18n file → 76 `$.datepicker.regional`
+      TypeErrors per page, and `fancytree` (bundle `depends=jqueryui`)
+      fails to initialise (`$.widget` missing at load). Upstream master
+      still has the bug (last commit 2023). Options: auto-checkout + fix
+      `tpl % plugin`, or drop the package and let jQuery UI come from one
+      global bundle (eea's `faceted-jquery` only loads on faceted pages;
+      `plonemeeting.js` uses `.sortable(`).
+- [ ] **Plone 4 skin icons**: `edit.png`, `delete_icon.png`,
+      `spinner_small.gif` (Plone 4 `plone_images`) referenced by
+      ~20 core templates + `collective.iconifiedcategory` → 404. Ship them
+      in `skins/plonemeeting_images` (where `cancel_edit.png` already
+      lives) or switch to `++plone++bootstrap-icons/*.svg`.
+- [ ] **Stale `portal_skins` layers** from the old theme
+      (`plonemeetingskin_*`, `imioapps_*` DirectoryViews warn at startup)
+      → upgrade step or theme reinstall on the dev site (created
+      2026-05-02, theme profile still at version 2500).
+
 ### D.6 — Data migration (`collective.exportimport`)
 
 Long-term path: dump content from Plone 4.3 to JSON, fresh-install

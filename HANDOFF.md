@@ -29,7 +29,7 @@ plonemeeting.core (`feature/D-plone6-cutover`):
 - `4953084ee` **D.6 extra state**: `migrations/p4top6/extra_state.py`
   (py2/py3 JSON codec + per-type attribute lists), `export_p43.py` (script
   for the 4.3 buildout), import hook restoring `pm_extra_state`.
-- `<see git log>` **D.6 post-process**: `ToolPloneMeeting.init_meeting_root_folder`
+- `902158614` **D.6 post-process**: `ToolPloneMeeting.init_meeting_root_folder`
   / `init_meeting_config_folder` extracted from `createMeetingConfigFolder`;
   `@@import_pm_post_process` re-applies the user folder setup and rebuilds
   `categorized_elements`.
@@ -56,13 +56,38 @@ buildout (`feature/D-plone6-cutover`):
   workflow now), which could surface tests that only passed on the
   "wrong" ordering. Before the fix the previous session measured
   939/0F/0E.
-- `bin/test -m testToolPloneMeeting` was started right after the
-  folder-init refactor (`/tmp/pm_next_logs/tool_tests.log`).
+- `bin/test -m testToolPloneMeeting` could NOT run after the folder-init
+  refactor: see the `plonetheme.imioapps` incident below. Indirect
+  coverage exists: the 19 migration tests create items after the
+  refactor (`self.create()` → `getPloneMeetingFolder` →
+  `createMeetingConfigFolder` → `init_meeting_config_folder`) and pass.
+  Run `bin/test -m testToolPloneMeeting` once the checkout is back.
+
+## Incident: `src/plonetheme.imioapps` emptied at 09:57 (NOT by this session)
+
+At 09:57:35 the checkout was switched to an unborn orphan branch
+`plone6` (HEAD → `refs/heads/plone6`, empty index, working tree emptied;
+`git switch --orphan plone6` does exactly that). The local `python3`
+branch and all objects are intact (`git log python3` → `ad66bf7`).
+Nothing in this session ran git there; another Claude session was open
+on the machine. Consequence: `plonemeeting.core/configure.zcml` includes
+`plonetheme.imioapps`, so every NEW test process fails ZCML loading with
+"Module plonetheme has no global imioapps" (the communes run started
+before it and is unaffected). If this was the start of the P6 theme
+port from scratch, the package needs at least an importable stub with a
+`configure.zcml`. Otherwise restore with:
+
+```sh
+cd src/plonetheme.imioapps
+git checkout python3
+git apply ../../patches/src-wip/plonetheme.imioapps.patch   # the P6 WIP (12 deletions)
+```
 
 ## Open threads (priority order)
 
-1. **Read the two logs above** and fix anything the deterministic layer
-   setup surfaced.
+1. **Decide about `src/plonetheme.imioapps`** (incident above), then read
+   the communes log and fix anything the deterministic layer setup
+   surfaced; run `bin/test -m testToolPloneMeeting`.
 2. **D.6 end-to-end dry run** — the only D.6 box left. Needs a prod copy
    (`make copy-data server=<host> buildout=<cfg>`), a 4.3 buildout with
    `collective.exportimport = 1.16` / `plone.restapi = 7.9.1`, then the

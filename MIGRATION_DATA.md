@@ -167,6 +167,33 @@ Copy to the new server: the JSON files **and** `var/blobstorage`
 Set `COLLECTIVE_EXPORTIMPORT_BLOB_HOME=/path/to/old/blobstorage` in the
 instance environment.
 
+`import-p6.cfg` builds an `instance-import` part with its own
+filestorage and blobstorage, so a dry run does not touch the
+development site and can start again from an empty database:
+
+```sh
+bin/python bin/buildout -c import-p6.cfg install instance-import
+rm -rf var/filestorage/import.fs* var/blobstorage-import   # start over
+bin/instance-import run scripts/p4top6/create_site.py
+bin/instance-import run scripts/p4top6/import_all.py [step ...]
+```
+
+`create_site.py` makes the empty site, `import_all.py` runs the steps
+below in order and commits after each one. Both run as a Manager:
+several setup handlers and import steps do workflow transitions that a
+role guards, and the Zope system user does not pass them.
+
+**The id of the new site must be the id the export was written for.**
+`collective.exportimport` builds the target path from the `@id` of an
+item: it drops the first element and resolves the rest against the new
+site. Pass `PM_EXPORT_TARGET_SITE_ID` on the 4.3 side (section 1).
+
+**Update mode deletes content.** With `handle_existing_content=2`
+(Update), a deserialization error makes `collective.exportimport` call
+`manage_delObjects` on the item id, which is content that was already
+there. Keep the "Skip" option, and give a field that fails validation a
+deferred import instead.
+
 Fresh site prep, in order:
 
 1. Create the Plone 6.1 site, install `plonemeeting.communes` profile
@@ -251,7 +278,21 @@ Fresh site prep, in order:
   pass over the configuration content plus the whole `bourgmestre`
   config (775 objects, 19 types) exports with **no error**: every entry
   has `parent`, all 775 carry `pm_extra_state`, 472 carry a workflow
-  history. Import half not run yet.
+  history.
+  **Import half started.** The empty 6.1 site builds, `members` (232
+  groups, 63 users) and `tool` (12 fields) import clean. The contacts
+  do not yet:
+  - the `contacts` directory of the 6.1 profile is skipped as existing
+    content, so it keeps the one `default` position type and every
+    `held_position` fails the `position_type` constraint. The directory
+    fields of the 4.3 site need their own import step.
+  - `groups_in_charge` (33 organizations), `primary_organization` (2
+    persons) and `item_advice_states` (3 organizations) are forward
+    references: an organization carries the advice settings of a
+    MeetingConfig and a MeetingConfig carries organization UIDs, so no
+    import order satisfies both. These fields need a deferred import,
+    in `PMImportContent.finish()`. Update mode is not an option, see
+    "Update mode deletes content".
   - `imio.esign` is not in the P6 stack. Its browser layer comes back
     as a broken class and is skipped, so whatever the esign serializers
     would add is not exported. Decide whether the pilot sites need it.

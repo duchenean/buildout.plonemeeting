@@ -13,13 +13,13 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 **Read [`HANDOFF.md`](HANDOFF.md)** — full state of the 2026-09-21 session.
 
 - D.1–D.3 done, D.4 partial, **D.5 done on all packages** (communes
-  939/0F/0E, restapi 95/95), **D.6 code complete** (only the end-to-end
-  dry run against a prod copy is left).
-- Blocking: `src/plonetheme.imioapps` was left on an empty orphan branch
-  on 2026-09-21 (see HANDOFF.md) — every new test process fails ZCML
-  loading until it is restored or stubbed.
-- Next: (1) plonetheme.imioapps decision + reruns listed in HANDOFF.md,
-  (2) D.6 dry run (needs `make copy-data`), (3) D.4 reactivations.
+  939/0F/1E env-only, restapi 95/95, core `testToolPloneMeeting` 40/40,
+  `testP4ToP6Migration` 21/21), **D.6 code complete** (only the
+  end-to-end dry run against a prod copy is left).
+- `src/plonetheme.imioapps` is back: rewritten from scratch on branch
+  `plone6` (duchenean fork, see `sources.cfg`); no blocker left.
+- Next: (1) D.6 dry run (needs `make copy-data`), (2) D.4
+  reactivations starting with AMQP / scan_id, (3) D.7 pilot.
 
 ---
 

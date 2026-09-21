@@ -45,12 +45,11 @@ buildout (`feature/D-plone6-cutover`):
 - **plonemeeting.restapi: 95 tests, 0 failures, 0 errors** (full run,
   `/tmp/pm_next_logs/restapi_full_after.log`). D.5 is closed on all
   three packages.
-- **core `testP4ToP6Migration`: 19/19** (codec round-trips, item and
-  meeting round-trips through the export and import hooks, post-process
-  view). The last core commit (export_p43 POST/type-listing fix) added
-  2 unit tests; only the 16 layer-free tests could be re-run after it
-  (16/16), the 5 layer tests are blocked by the incident below. Re-run
-  the whole module once the checkout is back.
+- **core `testP4ToP6Migration`: 21/21** (codec round-trips, export
+  script helpers, item and meeting round-trips through the export and
+  import hooks, post-process view). Re-run of the whole module after the
+  theme checkout came back: 16 layer-free + 5 layer tests, 0 failures
+  (`/tmp/pm_next_logs/test_p4top6_rerun.log`).
 - **communes full suite after the import-step fix: 939 tests,
   0 failures, 1 error, 12 skipped** (`/tmp/pm_next_logs/testmc_full.log`,
   `bin/testmc --layer='!.*Robot.*'`, 41 min). The one error is
@@ -59,38 +58,26 @@ buildout (`feature/D-plone6-cutover`):
   environment-only error as in the previous session. Identical to the
   pre-fix baseline, so the deterministic layer setup (Folders under the
   tool always get the one-state workflow now) surfaced nothing.
-- `bin/test -m testToolPloneMeeting` could NOT run after the folder-init
-  refactor: see the `plonetheme.imioapps` incident below. Indirect
-  coverage exists: the 19 migration tests create items after the
-  refactor (`self.create()` → `getPloneMeetingFolder` →
-  `createMeetingConfigFolder` → `init_meeting_config_folder`) and pass.
-  Run `bin/test -m testToolPloneMeeting` once the checkout is back.
+- **core `testToolPloneMeeting`: 40/40** after the folder-init refactor
+  (`init_meeting_root_folder` / `init_meeting_config_folder`), re-run
+  once the theme checkout was back (`/tmp/pm_next_logs/test_tool_rerun.log`).
 
-## Incident: `src/plonetheme.imioapps` emptied at 09:57 (NOT by this session)
+## Resolved: `src/plonetheme.imioapps` rewritten on `plone6`
 
-At 09:57:35 the checkout was switched to an unborn orphan branch
-`plone6` (HEAD → `refs/heads/plone6`, empty index, working tree emptied;
-`git switch --orphan plone6` does exactly that). The local `python3`
-branch and all objects are intact (`git log python3` → `ad66bf7`).
-Nothing in this session ran git there; another Claude session was open
-on the machine. Consequence: `plonemeeting.core/configure.zcml` includes
-`plonetheme.imioapps`, so every NEW test process fails ZCML loading with
-"Module plonetheme has no global imioapps" (the communes run started
-before it and is unaffected). If this was the start of the P6 theme
-port from scratch, the package needs at least an importable stub with a
-`configure.zcml`. Otherwise restore with:
-
-```sh
-cd src/plonetheme.imioapps
-git checkout python3
-git apply ../../patches/src-wip/plonetheme.imioapps.patch   # the P6 WIP (12 deletions)
-```
+The checkout was emptied at 09:57 by another session as the start of the
+Plone 6.1 theme port. Between 10:05 and 10:31 that session committed the
+new theme (4 commits on `plone6`, tracked by `fork/plone6`, working tree
+clean) and `sources.cfg` now points at `duchenean/plonetheme.imioapps`
+branch `plone6`. ZCML loading works again; the two blocked core modules
+were re-run and pass (see test status above). The old `python3` branch
+and `patches/src-wip/plonetheme.imioapps.patch` are kept for reference
+only.
 
 ## Open threads (priority order)
 
-1. **Decide about `src/plonetheme.imioapps`** (incident above), then run
-   `bin/test -m testToolPloneMeeting`, `bin/test -m testP4ToP6Migration`
-   and `bin/testmc -t test_pm_ItemExportPDFForm` with soffice serving.
+1. **Re-run `bin/testmc -t test_pm_ItemExportPDFForm`** with the host
+   soffice serving on :2002 (`make libreoffice-local`); the only test
+   not seen green in this environment.
 2. **D.6 end-to-end dry run** — the only D.6 box left. Needs a prod copy
    (`make copy-data server=<host> buildout=<cfg>`), a 4.3 buildout with
    `collective.exportimport = 1.16` / `plone.restapi = 7.9.1`, then the

@@ -1,0 +1,23 @@
+# collective.documentgenerator @ master 33b2d4c
+diff --git a/src/collective/documentgenerator/helper/dexterity.py b/src/collective/documentgenerator/helper/dexterity.py
+index ec68625..d326080 100644
+--- a/src/collective/documentgenerator/helper/dexterity.py
++++ b/src/collective/documentgenerator/helper/dexterity.py
+@@ -61,6 +61,8 @@ class DXDocumentGenerationHelperView(DocumentGenerationHelperView):
+ 
+     def display(self, field_name, no_value="", bypass_check_permission=False):
+         """Display field value."""
++        if self.get_field(field_name) is None:
++            return no_value
+         if bypass_check_permission or self.check_permission(field_name):
+             field_renderer = self.get_field_renderer(field_name)
+             display_value = field_renderer.render_value()
+@@ -74,6 +76,8 @@ class DXDocumentGenerationHelperView(DocumentGenerationHelperView):
+     def check_permission(self, field_name):
+         """Check field permission."""
+         schema = self.get_field_schema(field_name)
++        if schema is None:
++            return True
+         read_permissions = mergedTaggedValueDict(schema, READ_PERMISSIONS_KEY)
+         permission = read_permissions.get(field_name)
+         if permission is None:

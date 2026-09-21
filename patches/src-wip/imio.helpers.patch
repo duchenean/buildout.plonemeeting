@@ -1,0 +1,70 @@
+# imio.helpers @ master 5b387a7
+diff --git a/src/imio/helpers/cache.py b/src/imio/helpers/cache.py
+index 794392d..57931b2 100644
+--- a/src/imio/helpers/cache.py
++++ b/src/imio/helpers/cache.py
+@@ -243,7 +243,7 @@ def get_plone_groups_for_user_cachekey(method, user_id=None, user=None, the_obje
+ def get_plone_groups_for_user(user_id=None, user=None, the_objects=False):
+     """Just return user.getGroups but cached.
+     This method is tested in
+-    Products.PloneMeeting.tests.testToolPloneMeeting.test_pm_Get_plone_groups_for_user."""
++    plonemeeting.core.tests.testToolPloneMeeting.test_pm_Get_plone_groups_for_user."""
+     if api.user.is_anonymous():
+         return []
+     if user is None:
+diff --git a/src/imio/helpers/content.py b/src/imio/helpers/content.py
+index a2a0436..4d28bdf 100644
+--- a/src/imio/helpers/content.py
++++ b/src/imio/helpers/content.py
+@@ -260,7 +260,10 @@ def validate_fields(obj, behaviors=True, raise_on_errors=False):
+     fields = get_schema_fields(obj=obj, behaviors=True)
+     errors = []
+     for (field_name, field) in fields:
+-        field = field.bind(obj)
++        try:
++            field = field.bind(obj)
++        except Exception:
++            continue
+         value = getattr(obj, field_name)
+         # accept None for most of fields if required=False
+         if value is None and not field.required and not (isinstance(field, (Bool,))):
+diff --git a/src/imio/helpers/xhtml.py b/src/imio/helpers/xhtml.py
+index 3a56920..c8c4341 100644
+--- a/src/imio/helpers/xhtml.py
++++ b/src/imio/helpers/xhtml.py
+@@ -74,14 +74,13 @@ def xhtmlContentIsEmpty(xhtmlContent, tagWithAttributeIsNotEmpty=True):
+     be considered not empty."""
+ 
+     # first check if xhtmlContent is not simply None or so
+-    if six.PY3:
+-        isStr = isinstance(xhtmlContent, str) or isinstance(xhtmlContent, type(None))
+-    else:
+-        isStr = isinstance(xhtmlContent, bytes) or isinstance(xhtmlContent, type(None))
++    isStr = isinstance(xhtmlContent, (str, bytes)) or isinstance(xhtmlContent, type(None))
+     if isStr and (not xhtmlContent or not xhtmlContent.strip()):
+         return True
+ 
+     if isStr:
++        if isinstance(xhtmlContent, bytes):
++            xhtmlContent = xhtmlContent.decode('utf-8', errors='replace')
+         xhtmlContent = "<special_tag>%s</special_tag>" % xhtmlContent
+         tree = lxml.html.fromstring(safe_unicode(xhtmlContent))
+     else:
+@@ -566,6 +565,8 @@ def storeImagesLocally(
+ 
+         filename = imageObj.getId()
+         if HAS_PLONE_6_AND_MORE:
++            if not imageObj.image:
++                return None, None
+             data = imageObj.image.data
+         else:
+             # In Plone4 python 2.x : imageObj is <ATImage at /plone/dot.gif>
+@@ -682,7 +683,7 @@ def storeImagesLocally(
+             if handled:
+                 if replace_not_found_image:
+                     filename = "imageNotFound.jpg"
+-                    f = open(os.path.join(os.path.dirname(__file__), filename), "r")
++                    f = open(os.path.join(os.path.dirname(__file__), filename), "rb")
+                     data = f.read()
+                     f.close()
+                 else:

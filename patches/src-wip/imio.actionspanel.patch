@@ -1,0 +1,17 @@
+# imio.actionspanel @ plone6 5a44e31
+diff --git a/src/imio/actionspanel/events.py b/src/imio/actionspanel/events.py
+index f1d7e48..b84183a 100644
+--- a/src/imio/actionspanel/events.py
++++ b/src/imio/actionspanel/events.py
+@@ -4,7 +4,10 @@
+ #
+ 
+ from AccessControl import Unauthorized
+-from appy.gen import No
++try:
++    from appy.gen import No
++except (ImportError, ModuleNotFoundError):
++    from appy.utils import No
+ from imio.actionspanel.interfaces import IContentDeletable
+ 
+ 

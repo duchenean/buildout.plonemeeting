@@ -1,0 +1,56 @@
+# imio.annex @ python3 622d0eb
+diff --git a/src/imio/annex/browser/views.py b/src/imio/annex/browser/views.py
+index b0d6e7b..0f1e877 100644
+--- a/src/imio/annex/browser/views.py
++++ b/src/imio/annex/browser/views.py
+@@ -12,7 +12,7 @@ from io import BytesIO
+ from plone import api
+ from plone.rfc822.interfaces import IPrimaryFieldInfo
+ from Products.CMFPlone.utils import safe_unicode
+-from Products.PloneMeeting.widgets.pm_checkbox import PMCheckBoxFieldWidget
++from plonemeeting.core.widgets.pm_checkbox import PMCheckBoxFieldWidget
+ from PyPDF2 import PdfFileReader
+ from PyPDF2 import PdfFileWriter
+ from PyPDF2.errors import PdfReadError
+diff --git a/src/imio/annex/columns.py b/src/imio/annex/columns.py
+index 309dd30..0bbf71d 100644
+--- a/src/imio/annex/columns.py
++++ b/src/imio/annex/columns.py
+@@ -1,5 +1,7 @@
+ # -*- coding: utf-8 -*-
+ 
++from html import escape
++
+ from collective.eeafaceted.z3ctable.columns import ActionsColumn as DashboardActionsColumn
+ from collective.eeafaceted.z3ctable.columns import BaseColumn
+ from collective.eeafaceted.z3ctable.columns import DateColumn
+@@ -33,7 +35,7 @@ class PrettyLinkColumn(DashboardPrettyLinkColumn):
+         blank = u'<p class="discreet"></p>'
+ 
+         # display description if any
+-        description = safe_unicode(obj.Description() or u'').replace('\n', '<br/>')
++        description = escape(safe_unicode(obj.Description() or u'')).replace('\n', '<br/>')
+         if description:
+             description = u'<p class="discreet">{0}</p>'.format(description)
+ 
+diff --git a/src/imio/annex/utils.py b/src/imio/annex/utils.py
+index 7a6f611..8e7fb2e 100644
+--- a/src/imio/annex/utils.py
++++ b/src/imio/annex/utils.py
+@@ -6,7 +6,7 @@ from plone import api
+ from zope.annotation import IAnnotations
+ 
+ 
+-def get_annexes_to_print(container, portal_type=None, filters={"to_print": True}, caching=True):
++def get_annexes_to_print(container, portal_type=None, filters={"to_print": True}, sort_on=None, caching=True):
+     ''' '''
+     res = None
+     if caching:
+@@ -24,6 +24,7 @@ def get_annexes_to_print(container, portal_type=None, filters={"to_print": True}
+         annexes = get_categorized_elements(container,
+                                            result_type='dict',
+                                            portal_type=portal_type,
++                                           sort_on=sort_on,
+                                            filters=filters)
+         i = 1
+         for annex_infos in annexes:

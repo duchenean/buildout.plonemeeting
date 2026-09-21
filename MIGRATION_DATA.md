@@ -24,19 +24,55 @@ PyJWT = 1.7.1
 Add `collective.exportimport` to instance eggs, run buildout, restart.
 No GenericSetup install needed (views register on the site root).
 
-### Export sequence (as admin, on `/Plone/@@export_content`)
+### Export sequence (as admin)
 
-1. **Content** — select all PloneMeeting portal types (MeetingConfig,
-   every per-config `MeetingItemXxx` / `MeetingXxx` /
-   `MeetingItemTemplateXxx` / `MeetingItemRecurringXxx` FTI,
-   `meetingadvice`, annex types, contacts types, Folder, DashboardCollection,
-   POD template types…). Options:
-   - blobs: **"Include blob paths"** (`include_blobs=2`) — JSON stays small;
-     the import resolves paths against the old blobstorage.
-   - Do **not** tick "Modify exported data for migrations" for PM types
-     blindly — it drops all relation fields; our hooks do the renames.
-   - "Save to file on server" (or per-item files for very large sites,
-     `download_to_server=2`).
+1. **Content** — run the export script, not the `@@export_content` form.
+   The stock export only carries schema fields, workflow history and a
+   few extras; PloneMeeting keeps a lot of state in plain persistent
+   attributes and annotations (see "Extra state" below). Copy
+   `plonemeeting.core/src/plonemeeting/core/migrations/p4top6/export_p43.py`
+   **and** `extra_state.py` (same directory) to the 4.3 server, then:
+
+   ```sh
+   # every portal type that has content, one JSON file
+   bin/instance -O Plone run export_p43.py
+   # or an explicit list of types
+   bin/instance -O Plone run export_p43.py MeetingConfig MeetingItemCollege MeetingCollege
+   ```
+
+   Env knobs: `PM_EXPORT_SITE_ID` (default `Plone`), `PM_EXPORT_FILENAME`
+   (default `pm_content.json`, written to `var/instance/` or to
+   `COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY`). The script uses
+   `include_blobs=2` (blob paths, JSON stays small; the import resolves
+   them against the old blobstorage), `migration=False` (the
+   "modify for migrations" option drops relation fields; our import hooks
+   do the renames) and `write_errors=True` (unexported paths land in the
+   JSON). It aborts the transaction at the end.
+
+   **Extra state.** For every exported object the script adds a
+   `pm_extra_state` key: `{"attributes": {...}, "annotations": {...}}`,
+   JSON-encoded by `extra_state.py` with the container and date types
+   tagged so they are restored exactly (PersistentMapping/PersistentList,
+   OrderedDict, tuple, set, DateTime, datetime, date; py2 utf-8 `str`
+   becomes text). What is carried:
+   - items (`MeetingItem*`): `adviceIndex`, `takenOverByInfos`,
+     `itemHistory`, `autoCopyGroups`, `autoRestrictedCopyGroups`,
+     `emergency_changes_history`, `completeness_changes_history`,
+     `linked_predecessor_uid`, `linked_successor_uids`;
+   - meetings (`Meeting*`): `item_absents`, `item_excused`,
+     `item_non_attendees`, `item_signatories`, `item_attendees_positions`,
+     `item_attendees_order`, `item_votes`, `ordered_contacts`,
+     `_number_of_items`;
+   - advices (`meetingadvice*`): `advice_row_id`, `advice_given_history`,
+     `advice_hide_during_redaction_history`;
+   - annotations: `ftw.labels:labeling` and the
+     `PloneMeeting-sent_to_other_meetingconfig_*` markers.
+
+   Caches are deliberately not exported and are rebuilt on the 6.1 side:
+   `_labels_access_cache`, `_insert_order_cache`, `categorized_elements`
+   (collective.iconifiedcategory). A value of an unsupported type is
+   replaced by `null` and logged as a warning at export time: check the
+   export log on the dry run.
 2. `@@export_relations` (contains the `ManuallyLinkedItem` rows we need)
 3. `@@export_members`, `@@export_localroles`, `@@export_ordering`,
    `@@export_defaultpages`, `@@export_redirects`, `@@export_portlets`
@@ -100,6 +136,8 @@ Fresh site prep, in order:
 6. Import the rest of the content (meetings, items, advices, annexes,
    POD templates, folders). Items import with camelCase→snake_case
    renames applied; `manually_linked_items` is deliberately dropped here.
+   `PMImportContent.global_obj_hook` restores the `pm_extra_state` of
+   every object right after deserialization (before workflow history).
    Batch with `commit=500`; consider disabling `plone.versioning`
    during import (see c.e.i README) for speed.
 7. `@@import_pm_manually_linked_items?path=…/relations.json`
@@ -109,8 +147,12 @@ Fresh site prep, in order:
 9. `@@fix_html` (Plone 4 resolveuid/image markup → Plone 6).
 10. `@@reset_dates` (restores original modification dates).
 11. Rebuild catalog + PM-specific update: `portal_catalog` clear &
-    rebuild, then the usual `@@update-local-roles` equivalent /
-    `tool.update_all_local_roles()` sanity pass.
+    rebuild, then `tool.update_all_local_roles()` (recomputes
+    `adviceIndex` from configs and advices while keeping the imported
+    delay data: `delay_started_on`, `delay_stopped_on`,
+    `delay_changes_history`, `inherited`, `isConfidential`...) and
+    `update_all_categorized_elements(item)` on every item and meeting
+    (collective.iconifiedcategory) to rebuild the annex caches.
 
 ## 3. Verification checklist (per pilot site)
 
@@ -124,11 +166,13 @@ Fresh site prep, in order:
 
 ## Open points
 
-- Advice **annotations** on items (`ANNOTATION_KEY` advice data): verify
-  they are carried by the item serializer (annotations are not exported
-  by default) — may need a dedicated export/import hook pass.
-- `imio.history` / workflow-history comments encoding spot-check
-  (py2 str → py3 str).
+- ~~Advice data / annotations on items~~ — done: non-schema attributes and
+  annotations travel in `pm_extra_state` (export script + import hook,
+  tests in `testP4ToP6Migration.py`). The list of attributes lives in
+  `extra_state.py`: extend it if a profile package stores more.
+- `imio.history` histories go through the extra-state codec (py2 utf-8
+  `str` → text); workflow-history comments are handled by
+  collective.exportimport. Spot-check both on the dry run.
 - Faceted-navigation config on imported folders (re-apply
   `faceted_conf/` XML rather than importing the annotations).
 - Versions (CMFEditions) — decide keep-or-drop; export needs

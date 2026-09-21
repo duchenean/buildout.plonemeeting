@@ -1,0 +1,23 @@
+# collective.eeafaceted.batchactions @ python3 43d1f7c
+diff --git a/src/collective/eeafaceted/batchactions/profiles.zcml b/src/collective/eeafaceted/batchactions/profiles.zcml
+index 8b77e95..e98b74d 100644
+--- a/src/collective/eeafaceted/batchactions/profiles.zcml
++++ b/src/collective/eeafaceted/batchactions/profiles.zcml
+@@ -22,7 +22,7 @@
+       description="Extension profile for collective.eeafaceted.batchactions."
+       provides="Products.GenericSetup.interfaces.EXTENSION"
+       directory="profiles/plone6"
+-      zcml:condition="have plone-6"
++      zcml:condition="have plone-60"
+       />
+ 
+   <genericsetup:registerProfile
+@@ -31,7 +31,7 @@
+       description="collective.eeafaceted.batchactions"
+       provides="Products.GenericSetup.interfaces.EXTENSION"
+       directory="profiles/uninstall"
+-      zcml:condition="have plone-6"
++      zcml:condition="have plone-60"
+       />
+ 
+ </configure>

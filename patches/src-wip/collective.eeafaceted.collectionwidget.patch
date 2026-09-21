@@ -1,0 +1,14 @@
+# collective.eeafaceted.collectionwidget @ python3 5f13807
+diff --git a/src/collective/eeafaceted/collectionwidget/utils.py b/src/collective/eeafaceted/collectionwidget/utils.py
+index d8654bd..abe7e01 100644
+--- a/src/collective/eeafaceted/collectionwidget/utils.py
++++ b/src/collective/eeafaceted/collectionwidget/utils.py
+@@ -68,7 +68,7 @@ def getCurrentCollection(faceted_context, caching=True):
+         if not collectionUID and criterion.default:
+             collectionUID = criterion.default
+         if collectionUID:
+-            if base_hasattr(collectionUID, "__iter__"):
++            if isinstance(collectionUID, (list, tuple)):
+                 collectionUID = collectionUID[0]
+             collection = uuidToObject(collectionUID, unrestricted=True)
+         if caching and collection:

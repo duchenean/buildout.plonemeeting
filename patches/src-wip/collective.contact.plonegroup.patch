@@ -1,0 +1,17 @@
+# collective.contact.plonegroup @ python3 5164af2
+diff --git a/src/collective/contact/plonegroup/subscribers.py b/src/collective/contact/plonegroup/subscribers.py
+index af4ae58..6a7cfcd 100644
+--- a/src/collective/contact/plonegroup/subscribers.py
++++ b/src/collective/contact/plonegroup/subscribers.py
+@@ -63,7 +63,10 @@ def search_value_in_objects(s_obj, ref, p_types=[], type_fields={}):
+                         break
+             # also lookup behaviors
+             for behavior_id in fti.behaviors:
+-                behavior = getUtility(IBehavior, behavior_id).interface
++                try:
++                    behavior = getUtility(IBehavior, behavior_id).interface
++                except Exception:
++                    continue
+                 for name, fld in getFieldsInOrder(behavior):
+                     for iface in filter_interfaces:
+                         if iface.providedBy(fld) and name not in type_fields[ptype]:

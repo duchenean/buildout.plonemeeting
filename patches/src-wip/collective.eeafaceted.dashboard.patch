@@ -1,0 +1,104 @@
+# collective.eeafaceted.dashboard @ plone6 00876b9
+diff --git a/src/collective/eeafaceted/dashboard/browser/configure.zcml b/src/collective/eeafaceted/dashboard/browser/configure.zcml
+index 6bd456f..1b34fb9 100644
+--- a/src/collective/eeafaceted/dashboard/browser/configure.zcml
++++ b/src/collective/eeafaceted/dashboard/browser/configure.zcml
+@@ -40,7 +40,7 @@
+     <!-- collective.eeafaceted.z3ctable -->
+     <configure package="collective.eeafaceted.z3ctable">
+         <browser:view
+-            for="Products.ATContentTypes.interfaces.folder.IATFolder"
++            for="plone.dexterity.interfaces.IDexterityContainer"
+             name="faceted-table-view"
+             class="collective.eeafaceted.dashboard.browser.overrides.DashboardFacetedTableView"
+             permission="zope2.View"
+@@ -58,12 +58,6 @@
+             class="collective.eeafaceted.dashboard.browser.overrides.DashboardFacetedTableView"
+             permission="zope2.View"
+         />
+-        <browser:view
+-            for="plone.dexterity.interfaces.IDexterityContainer"
+-            name="faceted-table-view"
+-            class="collective.eeafaceted.dashboard.browser.overrides.DashboardFacetedTableView"
+-            permission="zope2.View"
+-        />
+     </configure>
+ 
+     <!-- collective.eeafaceted.collectionwidget -->
+diff --git a/src/collective/eeafaceted/dashboard/browser/views.py b/src/collective/eeafaceted/dashboard/browser/views.py
+index a43a3ab..441b48f 100644
+--- a/src/collective/eeafaceted/dashboard/browser/views.py
++++ b/src/collective/eeafaceted/dashboard/browser/views.py
+@@ -7,6 +7,7 @@ from collective.eeafaceted.dashboard.config import CURRENT_CRITERION
+ from collective.eeafaceted.dashboard.interfaces import ICountableTab
+ from eea.facetednavigation.subtypes.interfaces import IFacetedNavigable
+ from plone import api
++from Products.CMFPlone.utils import get_installer
+ from Products.Five.browser import BrowserView
+ from zope.globalrequest import getRequest
+ 
+@@ -23,10 +24,9 @@ class RenderTermPortletView(BaseRenderTermView):
+         self.term = term
+         self.category = category
+         self.widget = widget
+-        pqi = api.portal.get_tool('portal_quickinstaller')
+-        if pqi.isProductInstalled('collective.querynextprev'):
++        if get_installer(self.context, self.request).is_product_installed('collective.querynextprev'):
+             session = self.request.get('SESSION', {})
+-            if session.has_key(CURRENT_CRITERION):  # noqa
++            if CURRENT_CRITERION in session:
+                 self.selected_term = session[CURRENT_CRITERION]
+ 
+         return self.index()
+@@ -53,7 +53,7 @@ class JSONCollectionsCount(BrowserView):
+             voc = widget._generate_vocabulary()
+             info = []
+             portal = api.portal.get()
+-            for category in voc.itervalues():
++            for category in voc.values():
+                 for term in category['collections']:
+                     collection = portal.unrestrictedTraverse(term.value)
+                     if IDashboardCollection.providedBy(collection) \
+@@ -61,8 +61,8 @@ class JSONCollectionsCount(BrowserView):
+                         view = collection.unrestrictedTraverse(
+                             '@@render_collection_widget_term_portlet')
+                         info.append({
++                            'count': view.number_of_items(),
+                             'uid': term.token,
+-                            'count': view.number_of_items()
+                         })
+             res = {'criterionId': data.__name__,
+                    'countByCollection': info}
+diff --git a/src/collective/eeafaceted/dashboard/utils.py b/src/collective/eeafaceted/dashboard/utils.py
+index da8fcf9..6c818de 100644
+--- a/src/collective/eeafaceted/dashboard/utils.py
++++ b/src/collective/eeafaceted/dashboard/utils.py
+@@ -6,8 +6,10 @@ from eea.facetednavigation.criteria.interfaces import ICriteria
+ from eea.facetednavigation.interfaces import IHidePloneLeftColumn
+ from eea.facetednavigation.layout.interfaces import IFacetedLayout
+ from eea.facetednavigation.subtypes.interfaces import IFacetedNavigable
++from eea.facetednavigation.subtypes.interfaces import IPossibleFacetedNavigable
+ from os import path
+ from plone import api
++from zope.interface import alsoProvides
+ from zope.interface import noLongerProvides
+ 
+ import json
+@@ -55,6 +57,8 @@ def _enableFacetedDashboardFor(obj,
+     response_status = obj.REQUEST.RESPONSE.getStatus()
+     response_location = obj.REQUEST.RESPONSE.getHeader('location')
+     if enable_faceted:
++        if not IPossibleFacetedNavigable.providedBy(obj):
++            alsoProvides(obj, IPossibleFacetedNavigable)
+         obj.unrestrictedTraverse('@@faceted_subtyper').enable()
+ 
+     if update_layout:
+@@ -66,7 +70,7 @@ def _enableFacetedDashboardFor(obj,
+     # import configuration
+     if xmlpath:
+         obj.unrestrictedTraverse('@@faceted_exportimport').import_xml(
+-            import_file=open(xmlpath))
++            import_file=open(xmlpath, 'rb'))
+     # define default collection UID
+     if default_UID:
+         _updateDefaultCollectionFor(obj, default_UID)

@@ -132,10 +132,20 @@ index d8654bd..abe7e01 100644
              collection = uuidToObject(collectionUID, unrestricted=True)
          if caching and collection:
 diff --git a/src/collective/eeafaceted/collectionwidget/widgets/view.js b/src/collective/eeafaceted/collectionwidget/widgets/view.js
-index 7f08775..77732af 100644
+index 7f08775..457740e 100644
 --- a/src/collective/eeafaceted/collectionwidget/widgets/view.js
 +++ b/src/collective/eeafaceted/collectionwidget/widgets/view.js
-@@ -183,8 +183,8 @@ Faceted.initializeTagsCloudCollectionWidget = function(evt){
+@@ -146,7 +146,8 @@ showRelevantAdvancedCriteria = function(tag) {
+ }
+ 
+ updatePageTitle = function(tag) {
+-  var currentTitleTag = $('#content h1.documentFirstHeading');
++  /* Plone 4 gives the page title a class, Plone 6 renders a bare h1. */
++  var currentTitleTag = $('#content h1.documentFirstHeading, #content > header > h1').first();
+   if (currentTitleTag.hasClass('dontupdate')) {
+       return;
+   }
+@@ -183,8 +184,8 @@ Faceted.initializeTagsCloudCollectionWidget = function(evt){
    });
  };
  

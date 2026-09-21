@@ -380,9 +380,36 @@ theme is off there). Done:
 - [x] `AnnexActionsPanelView.showHistoryForContext` walked up parents until
       `__class__.__name__` was `MeetingItem`/`Meeting`: never true for the DX
       `MeetingItemRecurring`, crashed the annexes page. Dead walk removed.
+- [x] Rail header (reported 2026-09-21): the PloneMeeting portlet lost its
+      own template. `collective.eeafaceted.dashboard` `Renderer.render()`
+      names its template inline, so dropping the `render()` override in
+      `022160bdf` (D.1) made the rail fall back to the generic dashboard
+      portlet: no configuration name, no home and gear shortcuts, and no
+      contacts links (`to-own-org`, `to-edit-contacts`,
+      `to-add-contact-outside-my-org2`) on `/contacts`. `render()` is back
+      and the template is a `<dl>` fragment, not a full HTML document. The
+      `fa fa-home` / `fa fa-cog` classes stay: `plonetheme.imioapps` draws
+      both icons from a CSS mask keyed on those classes.
+- [x] Listing title did not follow the selected dashboard: `updatePageTitle`
+      in `collective.eeafaceted.collectionwidget` looked for
+      `#content h1.documentFirstHeading`, and Plone 6.1 renders the page
+      title as a bare `<h1>` (`Products/CMFPlone/browser/templates/title.pt`).
+      The selector accepts `#content > header > h1` too.
 
 **Still to do / not verified:**
 
+- [ ] Contacts dashboard serves three Plone 4 skin images: `create_contact.png`
+      and `create_organization.png` (category add links, `overrides.py` in
+      `plonemeeting.core` and `imio.dashboard`), `spinner_small.gif`
+      (`collective.contact.plonegroup` `tables.py`, already marked
+      `MIGRATION-PLONE6`). Same family as the icons fixed above.
+- [ ] Font Awesome is not served on Plone 6, and 14 more `fa fa-*` spans in
+      core templates draw nothing: `fa-question-circle` (help toggles in
+      `meetingitem_view.pt`, `meetingconfig_view.pt`, `advices-icons-infos.pt`),
+      `fa-angle-double-right`, `fa-plus`, `fa-link`, `fa-arrow-up` and
+      `fa-arrow-down` (`macros.pt` scroll buttons). The theme masks only the
+      two rail icons; decide per icon between a theme mask and
+      `@@iconresolver`.
 - [ ] Class-name checks that miss the DX item subclasses
       (`MeetingItemTemplate`, `MeetingItemRecurring`; the AT class was
       `MeetingItem` for all three types): `vocabularies.py` 611 (groups in

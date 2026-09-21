@@ -138,6 +138,30 @@ Tests: final combined run of `testAnnexes`, `testP4ToP6Migration` and
 `testSetup` after all edits: **83 tests, 0 failures, 0 errors, 4 skipped**
 (`/tmp/pm_next_logs/test_final_d5bis.log`).
 
+## Rail header and listing title (2026-09-21, evening)
+
+Two regressions reported from the dashboards, both fixed and verified on
+the private instance (`localhost:8091`, `tools/browser-checks/`):
+
+- The left rail lost the configuration name and the home and gear
+  shortcuts. `collective.eeafaceted.dashboard` `Renderer.render()` names
+  its own template inline, so the `render()` override removed from
+  `portlet_plonemeeting.py` in `022160bdf` (D.1) made the PloneMeeting
+  portlet render the generic dashboard template. The override is back and
+  the template is a `<dl>` fragment now. `/contacts` gets its three
+  PloneMeeting links back at the same time. Keep the `fa fa-home` and
+  `fa fa-cog` classes: `plonetheme.imioapps` `_rail.scss` draws both icons
+  from a CSS mask keyed on them, Font Awesome itself is not served.
+- The listing title did not follow the selected dashboard.
+  `updatePageTitle` in `collective.eeafaceted.collectionwidget` looked for
+  `#content h1.documentFirstHeading`; Plone 6.1 renders the page title as
+  a bare `<h1>` (`Products/CMFPlone/browser/templates/title.pt`). The
+  selector now accepts `#content > header > h1` as well.
+
+Seen while verifying, left in `TODO.md`: the contacts dashboard still asks
+for three Plone 4 skin images, and 14 more `fa fa-*` spans in core
+templates draw nothing.
+
 ## Open threads (priority order)
 
 1. **D.5bis residuals** (TODO.md "Still to do"): class-name checks vs the

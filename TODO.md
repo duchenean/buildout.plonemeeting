@@ -21,6 +21,8 @@ live in [`MIGRATION_REIMPLEMENT.md`](MIGRATION_REIMPLEMENT.md).
 - **D.5bis front-end fixes landed 2026-09-21** (bundles, modal port,
   icons, jqueryui); see its "Still to do" list, then (1) D.6 dry run
   (needs `make copy-data`), (2) D.4 reactivations, (3) D.7 pilot.
+- **D.5ter**: the chrome now follows the design mockups. The footer text
+  is hardcoded in the theme and needs a viewlet — see the section.
 
 ---
 
@@ -322,12 +324,14 @@ has 13 widgets, `testP4ToP6Migration` 21/21 with the new profile files.
 
 **Still to do / not verified:**
 
-- [ ] Two console errors left, both from collective.quickupload not being
-      installed on P6: `helpers.js:268 qq is not defined` (imio.helpers
-      quickupload glue) and `imio.annex.quickupload/helpers.js:1
-      PloneQuickUpload is not defined`. Decide: install
-      `collective.quickupload` (bundles exist in its `default` profile,
-      profile not installed on the dev site) or guard/drop both scripts.
+- [x] `qq is not defined` / `PloneQuickUpload is not defined`: the
+      `collective.quickupload` profile was not installed on P6. Kept (decision
+      2026-09-21: mockup `pat-upload` has no per-file title/category form, a
+      port would be a UX rewrite). `imio.annex` metadata now depends on
+      `profile-collective.quickupload:default`, the old `_configureQuickupload`
+      property values are registry records in core `registry.xml`,
+      `migrate_to_4301` installs the product on existing sites, prod pin
+      bumped to 2.0.0a1 (first P6 release; the master checkout adds Py3 fixes).
 - [ ] Collection widget `c1` still not registered in `Faceted.Widgets`
       after the sync-loading fix — check `collectionwidget/widgets/view.js`
       hooks now that `Faceted` exists at ready time (last browser check ran
@@ -355,6 +359,45 @@ has 13 widgets, `testP4ToP6Migration` 21/21 with the new profile files.
       regenerated in `patches/src-wip/*.patch` (11 packages, incl. new
       `collective.js.jqueryui`, `collective.js.iframeresizer`,
       `collective.iconifiedcategory`). Upstream PRs still to open.
+
+### D.5ter — Skin against the design mockups
+
+The chrome of `plonetheme.imioapps` is built against the claude.ai design
+project `ee8a1aa9-cd68-4df6-adea-d3c79d95acf7` ("iA.Délib - Skin Plone 6",
+boards `Chrome A.html` and `Meeting Item Redesign.html`). Top bar, message
+band, breadcrumb, left rail, count chips and footer match it; the items
+below are the parts the markup cannot supply yet.
+
+- [ ] **Footer text is hardcoded in `theme/index.html`** — the name of the
+      application (`iA.Délib · Gestion des délibérations`), the
+      `Documentation` link (`https://docs.imio.be/`) and the release
+      (`Version 6.0.1.2 build 33155716910.64.1`). None of the three is
+      translatable and the release is a literal from the mockup, so it
+      reads wrong on every site. A viewlet in `plonemeeting.core` must
+      supply them, with the release read from the distribution.
+- [ ] **Breadcrumb prefix** — the mockup opens the crumb line with
+      `Vous êtes ici :`. Plone 6 dropped it. It needs an override of the
+      `plone.path_bar` viewlet for a translatable string; Diazo and CSS
+      cannot add one.
+- [ ] **Rail header shortcuts on the to-do portlet** — the mockup gives
+      both rail headers the home and settings icons. Only
+      `portlet_plonemeeting.pt` renders them; `portlet_todo.pt` has a bare
+      `dt.portletHeader`.
+- [ ] **Accent searches in the rail** — the mockup marks a saved search
+      that needs attention (`.mi-rail-item.is-accent`). The faceted widget
+      exposes no such state.
+- [ ] **Content column** — the mockup stacks cards straight on the page
+      field; the theme still wraps every view in one white `#content`
+      card. Dropping the wrapper means every Plone view supplies its own
+      cards, which belongs with the item and configuration page redesign.
+- [ ] **Bottom gutter** — the mockup leaves 80px under the content to
+      clear its floating action bar. The theme leaves 20px, because it
+      ships no such bar yet.
+
+Reference render for measuring a component against the mockup: rebuild it
+as a static page from `ds/colors_and_type.css` + the component block of
+`ds/meeting-item.css` + the markup of the `.jsx`, serve it, and compare
+`getComputedStyle` numbers rather than screenshots.
 
 ### D.6 — Data migration (`collective.exportimport`)
 

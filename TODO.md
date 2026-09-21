@@ -251,22 +251,37 @@ stack:
       (exercised via the communes full suite, which extends core).
 - [x] `plonemeeting.communes` test suite green — 939 tests, 0 failures,
       0 errors (with LibreOffice up for the appy PDF test).
-- [~] `plonemeeting.restapi` integration tests: 93/95 green (94 → 2 red,
-      committed as plone6 `8123b56`). 2 residuals deferred: a
-      usedItemAttributes vocab msgid/i18n mismatch and a
-      search-count ordering/non-determinism issue. See HANDOFF.md.
+- [x] `plonemeeting.restapi` integration tests: 95/95 green. The two
+      residuals were core bugs: item attribute titles built from a
+      synthetic msgid (`get_dx_attrs`), and the `PloneMeeting-postInstall`
+      import step racing the `workflow` step (GenericSetup sorts
+      unconstrained steps from a set → PYTHONHASHSEED-dependent).
 
 ### D.6 — Data migration (`collective.exportimport`)
 
 Long-term path: dump content from Plone 4.3 to JSON, fresh-install
-Plone 6.1, import. Concrete mechanics designed at Stage D start,
-working against the sanitized prod copy archived end of Stage C.
+Plone 6.1, import. Runbook: [`MIGRATION_DATA.md`](MIGRATION_DATA.md).
+Code: `plonemeeting.core/.../migrations/p4top6/` (import hooks,
+`extra_state.py` codec, `export_p43.py` for the 4.3 side,
+`@@import_pm_*` views), tests in `testP4ToP6Migration.py`.
 
-- [ ] Decide which `collective.exportimport` exporters to enable.
-- [ ] Workflow-history strategy.
-- [ ] Blob handling.
-- [ ] References / relations strategy.
-- [ ] Per-content-type migration scripts.
+- [x] Decide which `collective.exportimport` exporters to enable —
+      content via `export_p43.py` (+ `pm_extra_state`), then relations,
+      members, localroles, ordering, defaultpages, redirects; portlets
+      to review; tool settings via a debug-prompt dump.
+- [x] Workflow-history strategy — carried by c.e.i as-is; CMFEditions
+      versions dropped (no caller creates them any more).
+- [x] Blob handling — blob paths (`include_blobs=2`) resolved against the
+      old blobstorage (`COLLECTIVE_EXPORTIMPORT_BLOB_HOME`).
+- [x] References / relations strategy — `manually_linked_items` rebuilt
+      from `relations.json`; predecessor/successor UIDs travel in the
+      extra state; other relation fields renamed at import.
+- [x] Per-content-type migration scripts — `PMImportContent` hooks
+      (field renames, DataGrid row keys, extra state),
+      `@@import_pm_tool_settings`, `@@import_pm_manually_linked_items`,
+      `@@import_pm_post_process` (user folders faceted setup +
+      `categorized_elements`).
+- [ ] End-to-end dry run against a real 4.3 export (needs a prod copy).
 
 ### D.7 — Production rollout
 

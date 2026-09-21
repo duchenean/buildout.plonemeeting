@@ -144,6 +144,18 @@ Fresh site prep, in order:
    (rebuilds the UID lists from the `ManuallyLinkedItem` relation rows).
 8. `@@import_localroles`, `@@import_ordering`, `@@import_defaultpages`,
    `@@import_redirects`.
+8bis. `@@import_pm_post_process` — re-applies what the JSON cannot carry:
+   every `Members/<user>/mymeetings/<cfg_id>` folder comes back as a plain
+   Folder, so the view re-runs the PloneMeeting folder setup on it
+   (faceted dashboard + `searches_*` sub-folders, `meeting_config`
+   property, permissions, constrained types, MeetingManager local role;
+   `tool.init_meeting_config_folder`) and rebuilds the
+   collective.iconifiedcategory `categorized_elements` cache of every item
+   and meeting (`?skip_categorized_elements=1` to skip that part). The
+   config `searches` folders need nothing: they are recreated by
+   `onConfigAdded` when the MeetingConfig is imported, and the 4.3 ones
+   are skipped as existing content (keep the default "Skip" option for
+   existing content).
 9. `@@fix_html` (Plone 4 resolveuid/image markup → Plone 6).
 10. `@@reset_dates` (restores original modification dates).
 11. Rebuild catalog + PM-specific update: `portal_catalog` clear &
@@ -173,7 +185,13 @@ Fresh site prep, in order:
 - `imio.history` histories go through the extra-state codec (py2 utf-8
   `str` → text); workflow-history comments are handled by
   collective.exportimport. Spot-check both on the dry run.
-- Faceted-navigation config on imported folders (re-apply
-  `faceted_conf/` XML rather than importing the annotations).
-- Versions (CMFEditions) — decide keep-or-drop; export needs
-  plone.restapi ≥ 7.7.0 if kept.
+- ~~Faceted-navigation config on imported folders~~ — done:
+  `@@import_pm_post_process` (step 8bis).
+- ~~Versions (CMFEditions)~~ — **dropped**: nothing in plonemeeting.core
+  or plonemeeting.communes creates versions any more (`version_object`
+  has no caller; advice history uses imio.history). Export without
+  `include_revisions`; `@@export_content` versions are not needed, so the
+  plone.restapi ≥ 7.7.0 constraint on the 4.3 side only matters for the
+  serializers themselves.
+- End-to-end dry run against a real 4.3 export (needs a prod copy:
+  `make copy-data server=<host> buildout=<cfg>`; none exists locally).

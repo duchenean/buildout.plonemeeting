@@ -440,6 +440,13 @@ with `simplejson`, which gives a `Decimal` for every float. The extra
 state holds timestamps, and `DateTime(Decimal(...))` raises, so
 `extra_state.decode` casts them back.
 
+**A deferred value is still a token.** A deferred field leaves the data
+in `global_dict_hook`, which runs before the hook that gives a Choice
+its token, so the store holds the whole term
+(`{"title": ..., "token": ...}`). `apply_deferred_fields` untokenizes it
+before it writes it, otherwise the value never validates
+(`unhashable type: 'dict'`) and the field waits for ever.
+
 **Deferred fields.** The references are circular: an organization
 carries the advice settings of a MeetingConfig (`item_advice_states`,
 `item_advice_edit_states`, `item_advice_view_states`) while a

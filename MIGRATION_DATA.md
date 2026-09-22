@@ -100,13 +100,43 @@ Notes on that part:
 
    Env knobs: `PM_EXPORT_SITE_ID` (default `Plone`, a path such as
    `demo/demo` when the site is in a mounted database),
-   `PM_EXPORT_FILENAME` (default `pm_content.json`, written to
-   `var/instance/` or to `COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY`). The script uses
+   `PM_EXPORT_TARGET_SITE_ID` (the id of the Plone 6 site, see
+   "The id of the new site" below), `PM_EXPORT_FILENAME` (default
+   `pm_content.json`, written to `var/instance/` or to
+   `COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY`). The script uses
    `include_blobs=2` (blob paths, JSON stays small; the import resolves
-   them against the old blobstorage), `migration=False` (the
+   them against the old blobstorage) and `migration=False` (the
    "modify for migrations" option drops relation fields; our import hooks
-   do the renames) and `write_errors=True` (unexported paths land in the
-   JSON). It aborts the transaction at the end.
+   do the renames). It aborts the transaction at the end.
+
+   **Unexported paths** go to `<filename>.errors.json`, not into the
+   content file: `write_errors=True` appends them to the JSON array as
+   an `{"unexported_paths": [...]}` entry, and the import reads the
+   `@id` of every entry.
+
+   **URLs.** Every URL of the exported site is rewritten to
+   `http://nohost/<target site id>`, whatever host wrote it. A
+   serializer that resolves its object outside the acquisition chain of
+   the request — a relation field, for example — writes another host
+   than the one of the exported item, and the plone.restapi relation
+   deserializer only resolves a URL that starts with the portal URL of
+   the site it imports into. The import normalizes the host a second
+   time, so an export made on a server with a public host name imports
+   as well.
+
+   **Export the types in this order**, one file each, so the import can
+   follow the same order (see section 2):
+
+   | file | portal types |
+   |---|---|
+   | `contacts.json` | `directory organization person held_position` |
+   | `configs.json` | `MeetingConfig meetingcategory ContentCategoryConfiguration ContentCategoryGroup ContentCategory ContentSubcategory ItemAnnexContentCategory ItemAnnexContentSubcategory DashboardCollection DashboardPODTemplate ConfigurablePODTemplate StyleTemplate` |
+   | `folders.json` | `Folder Document Image File Link Event Collection Message` |
+   | `content.json` | every `Meeting*` / `MeetingItem*` type of every config, `meetingadvice`, `annex`, `annexDecision` |
+
+   `Topic` (Plone 4 collections) has no Plone 6 type: convert the ones
+   that matter to `Collection` on the 4.3 side before the export, or
+   leave them behind.
 
    **Extra state.** For every exported object the script adds a
    `pm_extra_state` key: `{"attributes": {...}, "annotations": {...}}`,
@@ -139,11 +169,21 @@ Notes on that part:
    PM_EXPORT_SITE_ID=demo/demo bin/instance-export run $(pwd)/export_other_p43.py
    ```
 
-   With no argument it writes `tool.json`, `relations.json`,
-   `members.json`, `localroles.json`, `ordering.json`,
+   With no argument it writes `tool.json`, `registry.json`,
+   `relations.json`, `members.json`, `localroles.json`, `ordering.json`,
    `defaultpages.json`, `redirects.json` and `portlets.json`. Name one
    or more exports to run only those. It aborts the transaction at the
    end.
+
+   - `registry.json` holds the `plone.registry` records of
+     `REGISTRY_RECORDS`: the selected organizations, the function
+     suffixes and the managed groups of
+     `collective.contact.plonegroup`. They are records, not content, and
+     collective.exportimport has no registry exporter. Without them the
+     new site has no selected organization, so no Plone group and an
+     empty vocabulary for every field that points at an organization.
+     Extend the list for a profile package that keeps more settings in
+     the registry.
 
    - `relations.json` holds the `ManuallyLinkedItem` rows that step 7 of
      the import needs, plus the contact `position` and `voting_group`
@@ -194,7 +234,127 @@ site. Pass `PM_EXPORT_TARGET_SITE_ID` on the 4.3 side (section 1).
 there. Keep the "Skip" option, and give a field that fails validation a
 deferred import instead.
 
-Fresh site prep, in order:
+**A MeetingConfig needs its workflow fields at creation.**
+`collective.exportimport` creates an empty object and deserializes it
+afterwards. PloneMeeting builds the portal types and duplicates the
+workflows of a config on `ObjectAddedEvent`
+(`tool.invokeFactory('MeetingConfig', **data)` is its supported path),
+and the vocabulary of several config fields reads the states of the
+item workflow. An empty config therefore registers the *base* portal
+type names, gets no workflow, and the deserializer raises `IndexError`
+in `getItemWorkflow()`. `mappings.CONFIG_FACTORY_FIELDS` travels in the
+`factory_kwargs` of the item so the values are set before the object
+reaches its container; the rest follows through the deserializer and
+the `ObjectModifiedEvent` of `finish()`.
+
+The **workflow adaptations** cannot travel that way:
+`_performWorkflowAdaptations()` walks the `searches` folders of the
+config, and `onConfigInitialized()` creates them *after* it calls
+`registerPortalTypes()`. They are applied on the created object
+instead, right before it is deserialized, because many fields of a
+config point at item states that only exist once they are applied
+(`accepted_but_modified`, `returned_to_proposing_group`, …).
+
+**A MeetingConfig also stores MeetingItem field names as values.**
+`used_item_attributes`, `historized_item_attributes`, the column lists
+and `item_fields_config.name` hold AT camelCase names, and the Plone 6
+vocabularies list the Dexterity ones. The same `MEETINGITEM_AT_TO_DX`
+table renames those values (`mappings.MEETINGCONFIG_ITEM_FIELD_NAME_*`),
+including the `MeetingItem.<name>` form of `xhtml_transform_fields`.
+
+**Some MeetingConfig fields skip the deserializer**
+(`mappings.MEETINGCONFIG_RAW_GRIDS` and `MEETINGCONFIG_RAW_FIELDS`, set
+with `setattr` in `global_obj_hook`). A `DataGridField` row is validated
+by `DictRow` with the *row* as context, so every `Choice` column whose
+vocabulary reads the MeetingConfig — its item states, its labels, its
+item fields, the other configs — comes back empty and refuses every
+value. `used_poll_types` builds its own vocabulary from its stored
+value, and the Plone 6 item-attributes vocabulary no longer offers
+`title` for `historized_item_attributes`. A row is stored as a plain
+dict of plain values, which is what the export carries, and PloneMeeting
+builds a config the same way
+(`tool.invokeFactory('MeetingConfig', **data)`). Add a grid to the tuple
+if a pilot site reports it as "Constraint not satisfied" or "Wrong
+contained type" — unless one of its columns is a Date or a file, which
+does need the deserializer.
+
+**UIDs the profile creates again.** `onConfigInitialized()` recreates
+the `searches` folders and every `DashboardCollection` of a config, so
+the import skips them as existing content and they keep the UID of the
+*new* site. `PMImportContent` notes every such pair in a UID map on the
+portal (`plonemeeting.core.p4top6.uid_map`) and the deferred pass
+rewrites the UIDs of a value before applying it, so
+`to_do_list_searches` and the like point at the right object.
+
+**Two passes over the same file.** A POD template that reuses another
+one, an annex type that names the type a scan becomes, a category that
+points at the category of another config: all point at an object that
+comes *later* in the same file, and the invariant of a POD template
+wants a file or a template to reuse, so a deferred field would not save
+it. `import_all.py` runs `configs.json` twice (`configs`, `configs2`)
+and `folders.json` twice (`folders`, `folders2`, the second time after
+the items, because the images of an item live in the item). A pass
+skips what is already there and only retries what failed.
+
+**A term is stored as its token.** `plonemeeting.restapi` overrides the
+deserializer and stores a value before it checks the vocabulary — an
+Archetypes validator ran after the mutator, and the PloneMeeting
+vocabularies include the stored value. The `{"token": …, "title": …}`
+dict of the export would stay in the field and the next vocabulary that
+reads it fails (`'dict' object has no attribute 'split'`), so every
+`Choice` value is reduced to its token first, against the real schema.
+The `language` of a 4.3 object is the empty token, which Plone 6 does
+not offer: the key is dropped and the site language applies
+(`mappings.DROP_EMPTY_CHOICE_FIELDS`). A `null` on a field Plone 6
+requires is dropped the same way, so the Dexterity default stands.
+
+**Blobs before the deserializer.** `collective.exportimport` writes a
+`blob_path` field after deserializing. An invariant that wants a file
+then fails on an object that has none yet — a POD template wants an
+`odt_file` or a template to reuse — and the whole object is lost.
+`PMImportContent` writes the blobs in
+`global_obj_hook_before_deserializing` and takes the key out of the
+data, so the invariant reads the object.
+
+**No container is ever invented.** The stock import creates the folder
+structure a path needs. Here a missing container means the export is
+incomplete or a step ran out of order, and the invented `Folder` would
+sit where the real object belongs, so `PMImportContent.create_container`
+only reports it. Grep the log for `No container for`.
+
+**Deferred fields.** The references are circular: an organization
+carries the advice settings of a MeetingConfig (`item_advice_states`,
+`item_advice_edit_states`, `item_advice_view_states`) while a
+MeetingConfig carries organization UIDs; an organization points at
+other organizations (`groups_in_charge`) and at a held_position
+(`certified_signatures`); a person points at an organization
+(`primary_organization`); a held_position points at an organization
+(`position`, `voting_group`, `represented_organizations`) and the
+export is sorted by path, so a person that sorts before
+`plonegroup-organization` holds a position in an organization that is
+not imported yet. No import order satisfies all of that, and one field
+that does not validate loses the whole object: the plone.restapi
+deserializer raises on the first error and collective.exportimport
+drops the item.
+
+`mappings.DEFERRED_FIELDS` lists these fields per portal type.
+`PMImportContent` takes them out of the item before deserializing and
+keeps them on the portal, in the `plonemeeting.core.p4top6.deferred_fields`
+annotation. Every import run retries the whole store when it ends, one
+field at a time, so a value that still does not validate does not hold
+back the others; `@@import_pm_deferred_fields` runs a last pass and
+reports what is left:
+
+```
+deferred fields: 118 applied, 0 still waiting, 0 on objects that were
+not imported
+```
+
+Anything other than `0 still waiting` needs a look: the field is in the
+store, the object is imported, and the value does not validate against
+the new site.
+
+Fresh site prep, in order (`import_all.py` runs exactly these steps):
 
 1. Create the Plone 6.1 site, install `plonemeeting.communes` profile
    (pulls plonemeeting.core; sets up tool, workflows, base config —
@@ -203,25 +363,39 @@ Fresh site prep, in order:
    workflow history / configs).
 3. `@@import_pm_tool_settings?path=…/tool.json`
 4. Import **contacts** content (directory, organizations, persons,
-   held_positions) — configs reference org UIDs.
-5. Import **MeetingConfig** objects. Our `PMImportContent` renames the
+   held_positions) — configs reference org UIDs. The `contacts`
+   directory of the profile already exists, so the import skips it;
+   `PMImportContent` applies its `position_types`,
+   `organization_types` and `organization_levels` on the existing
+   object instead, before the held_positions of the same file are
+   deserialized against them.
+5. `@@import_pm_registry?path=…/registry.json`. After the contacts,
+   because the selected organizations are organization UIDs and writing
+   them makes `collective.contact.plonegroup` create the Plone group of
+   every organization. Before the configs, because every MeetingConfig
+   field that points at an organization uses that same list.
+6. Import **MeetingConfig** objects. Our `PMImportContent` renames the
    153 AT field names (incl. the 20 missing from the migration-summary
    doc and `budgetDefault`, which the doc wrongly lists as removed),
    remaps DataGrid row keys (`signatureNumber`, `insertingMethod`) and
    fires `ObjectModifiedEvent` in `finish()` so the derived Plone
    groups / cloned FTIs are (re)created.
-6. Import the rest of the content (meetings, items, advices, annexes,
-   POD templates, folders). Items import with camelCase→snake_case
-   renames applied; `manually_linked_items` is deliberately dropped here.
+7. Import the **folders** (`folders.json`), then the rest of the
+   **content** (meetings, items, advices, annexes). Folders first: the
+   items of a user live in `Members/<user>/mymeetings/<cfg_id>`. Items
+   import with camelCase→snake_case renames applied;
+   `manually_linked_items` is deliberately dropped here.
    `PMImportContent.global_obj_hook` restores the `pm_extra_state` of
    every object right after deserialization (before workflow history).
    Batch with `commit=500`; consider disabling `plone.versioning`
    during import (see c.e.i README) for speed.
-7. `@@import_pm_manually_linked_items?path=…/relations.json`
+7bis. `@@import_pm_deferred_fields` — last pass over the **deferred
+   fields** (below).
+8. `@@import_pm_manually_linked_items?path=…/relations.json`
    (rebuilds the UID lists from the `ManuallyLinkedItem` relation rows).
-8. `@@import_localroles`, `@@import_ordering`, `@@import_defaultpages`,
+9. `@@import_localroles`, `@@import_ordering`, `@@import_defaultpages`,
    `@@import_redirects`.
-8bis. `@@import_pm_post_process` — re-applies what the JSON cannot carry:
+10. `@@import_pm_post_process` — re-applies what the JSON cannot carry:
    every `Members/<user>/mymeetings/<cfg_id>` folder comes back as a plain
    Folder, so the view re-runs the PloneMeeting folder setup on it
    (faceted dashboard + `searches_*` sub-folders, `meeting_config`
@@ -233,9 +407,9 @@ Fresh site prep, in order:
    `onConfigAdded` when the MeetingConfig is imported, and the 4.3 ones
    are skipped as existing content (keep the default "Skip" option for
    existing content).
-9. `@@fix_html` (Plone 4 resolveuid/image markup → Plone 6).
-10. `@@reset_dates` (restores original modification dates).
-11. Rebuild catalog + PM-specific update: `portal_catalog` clear &
+11. `@@fix_html` (Plone 4 resolveuid/image markup → Plone 6).
+12. `@@reset_dates` (restores original modification dates).
+13. Rebuild catalog + PM-specific update: `portal_catalog` clear &
     rebuild, then `tool.update_all_local_roles()` (recomputes
     `adviceIndex` from configs and advices while keeping the imported
     delay data: `delay_started_on`, `delay_stopped_on`,
@@ -244,6 +418,14 @@ Fresh site prep, in order:
     (collective.iconifiedcategory) to rebuild the annex caches.
 
 ## 3. Verification checklist (per pilot site)
+
+Count against the `portal_type` **index** of the 4.3 catalog, not the
+catalog length: the demo copy holds 658 brains whose object is gone
+(608 `annex`, 43 `annexDecision`, 4 `meetingadvice`, 2 `person`, 1
+`Folder`) and a few brains with a trailing slash in their path. The
+export walks the index, so those are not exported and must not be
+counted as a loss. A `portal_catalog` clear & rebuild on the copy
+before the export removes the difference.
 
 - [ ] item/meeting/advice counts match the 4.3 catalog counts
 - [ ] workflow history + review_state preserved on spot-checked items

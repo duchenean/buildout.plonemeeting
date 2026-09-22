@@ -6,6 +6,7 @@
 # With no argument every step runs. The JSON files come from the export
 # directory (COLLECTIVE_EXPORTIMPORT_CENTRAL_DIRECTORY). The script runs
 # as a Manager and commits after each step.
+import logging
 import os
 import sys
 import time
@@ -79,6 +80,24 @@ class Runner(object):
         return self.view(view_name)()
 
 
+def setup_logging():
+    """Show what the import does.
+
+       zopectl leaves the root logger alone, so the INFO lines of the
+       import hooks (directory fields, registry records, deferred
+       fields) would go nowhere and only the warnings would reach
+       stderr. Only these two loggers are raised: the root logger at
+       INFO buries them under the startup of every egg."""
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+    for name in ("plonemeeting.core: p4top6 import",
+                 "collective.exportimport.import_content",
+                 "collective.exportimport.import_other"):
+        log = logging.getLogger(name)
+        log.setLevel(logging.INFO)
+        log.addHandler(handler)
+
+
 def steps(runner):
     """name -> what to run, in order."""
     return (
@@ -89,8 +108,30 @@ def steps(runner):
         # the item, and in update mode that is content that was already
         # there. See MIGRATION_DATA.md, "Update mode deletes content".
         ("contacts", lambda: runner.content("contacts.json")),
+        # after the contacts: the selected organizations are organization
+        # UIDs, and writing them creates the Plone group of every
+        # organization. Before the configs: the fields of a MeetingConfig
+        # that point at an organization use that same list.
+        ("registry", lambda: runner.with_path(
+            "import_pm_registry", "registry.json")),
         ("configs", lambda: runner.content("configs.json")),
-        ("content", lambda: runner.content("content_bp.json")),
+        # second pass over the same file: a POD template that reuses
+        # another one, an annex type that points at the type a scan
+        # becomes, a category that points at the category of another
+        # config... all point at an object of the same file that comes
+        # later. The pass skips what is already there and only retries
+        # what failed.
+        ("configs2", lambda: runner.content("configs.json")),
+        # folders before the content they hold: the items of a user live
+        # in Members/<user>/mymeetings/<cfg_id>
+        ("folders", lambda: runner.content("folders.json")),
+        ("content", lambda: runner.content("content.json")),
+        # the images of an item live in the item: they are in
+        # folders.json, which runs before the items exist
+        ("folders2", lambda: runner.content("folders.json")),
+        # last pass over the fields that pointed at content which did not
+        # exist yet when their own object was imported
+        ("deferred", lambda: runner.plain("import_pm_deferred_fields")),
         ("linked_items", lambda: runner.with_path(
             "import_pm_manually_linked_items", "relations.json")),
         ("localroles", lambda: runner.other("import_localroles", "localroles.json")),
@@ -105,6 +146,7 @@ def steps(runner):
 
 
 def main(root, wanted):
+    setup_logging()
     newSecurityManager(None, root.acl_users.getUser(ADMIN).__of__(root.acl_users))
     portal = getattr(root, SITE_ID)
     setSite(portal)

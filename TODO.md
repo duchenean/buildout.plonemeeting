@@ -512,7 +512,18 @@ Code: `plonemeeting.core/.../migrations/p4top6/` (import hooks,
       `@@import_pm_tool_settings`, `@@import_pm_manually_linked_items`,
       `@@import_pm_post_process` (user folders faceted setup +
       `categorized_elements`).
-- [ ] End-to-end dry run against a real 4.3 export (needs a prod copy).
+- [x] Registry records — `collective.exportimport` has no registry
+      exporter and the selected organizations / function suffixes of
+      `collective.contact.plonegroup` live in the registry:
+      `export_other_p43.py registry` + `@@import_pm_registry`.
+- [x] Contacts directory — the profile already creates it, so the import
+      skips it; `PMImportContent` applies `position_types` &co on the
+      existing object.
+- [x] Circular references — `mappings.DEFERRED_FIELDS` + a deferred
+      store on the portal, retried at the end of every import run and
+      by `@@import_pm_deferred_fields`.
+- [ ] End-to-end dry run against a real 4.3 export — **in progress**,
+      see MIGRATION_DATA.md "Open points".
 
 ### D.7 — Production rollout
 

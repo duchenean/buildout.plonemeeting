@@ -90,7 +90,8 @@ class Runner(object):
         """The last word on what the site holds."""
         catalog = self.portal.portal_catalog
         catalog.clearFindAndRebuild()
-        return "%s brains" % len(catalog)
+        return "%s brains" % len(catalog.unrestrictedSearchResults(
+            path="/".join(self.portal.getPhysicalPath())))
 
 
 def setup_logging():

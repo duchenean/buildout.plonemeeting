@@ -411,6 +411,14 @@ object. `PMImportContent` sets `skip_at_compat_validators` on the
 request for the time of the import. The DX schema constraints still
 apply, a vocabulary among them.
 
+**A category the config does not have.** An item can name a category
+that was deleted, or a category of another MeetingConfig: the demo copy
+has 1 364 of them, a quarter of its items. Nothing can be written for
+it, so `category` and `classifier` are in
+`mappings.DROP_UNKNOWN_CHOICE_FIELDS`: the item keeps no category and
+the import logs every value it drops (`is not offered any more on`).
+An item with no category is a smaller loss than no item.
+
 **A term the config dropped has a fallback.** A MeetingConfig can stop
 offering a privacy while its items keep it. `mappings.CHOICE_FALLBACKS`
 maps such a value to the one to use instead; a heading privacy falls
@@ -520,13 +528,15 @@ Fresh site prep, in order (`import_all.py` runs exactly these steps):
    existing content).
 11. `@@fix_html` (Plone 4 resolveuid/image markup → Plone 6).
 12. `@@reset_dates` (restores original modification dates).
-13. Rebuild catalog + PM-specific update: `portal_catalog` clear &
-    rebuild, then `tool.update_all_local_roles()` (recomputes
-    `adviceIndex` from configs and advices while keeping the imported
-    delay data: `delay_started_on`, `delay_stopped_on`,
-    `delay_changes_history`, `inherited`, `isConfidential`...) and
-    `update_all_categorized_elements(item)` on every item and meeting
-    (collective.iconifiedcategory) to rebuild the annex caches.
+13. `tool.update_all_local_roles(redirect=False)` (the `local_roles`
+    step) recomputes `adviceIndex` from the configs and the advices
+    while keeping the imported delay data (`delay_started_on`,
+    `delay_stopped_on`, `delay_changes_history`, `inherited`,
+    `isConfidential`...) and the local roles of every item and meeting.
+    It runs last because it needs the configs, the advices and the
+    imported local roles. It does not touch the catalog, so the
+    `catalog` step then does a `portal_catalog` clear and rebuild. The
+    annex caches are already built in step 10.
 
 ## 3. Verification checklist (per pilot site)
 

@@ -79,6 +79,19 @@ class Runner(object):
         self.reset_form(**kwargs)
         return self.view(view_name)()
 
+    def update_local_roles(self):
+        """Recompute the advices index and the local roles of every item
+           and meeting. It does not touch the catalog."""
+        tool = self.portal.portal_plonemeeting
+        warnings = tool.update_all_local_roles(redirect=False)
+        return "%s warnings" % len(warnings)
+
+    def rebuild_catalog(self):
+        """The last word on what the site holds."""
+        catalog = self.portal.portal_catalog
+        catalog.clearFindAndRebuild()
+        return "%s brains" % len(catalog)
+
 
 def setup_logging():
     """Show what the import does.
@@ -147,6 +160,12 @@ def steps(runner):
         ("post_process", lambda: runner.plain("import_pm_post_process")),
         ("fix_html", lambda: runner.plain("fix_html")),
         ("reset_dates", lambda: runner.plain("reset_dates")),
+        # the advices index and the local roles of every item and
+        # meeting, now that the configs, the advices and the imported
+        # local roles are all there
+        ("local_roles", lambda: runner.update_local_roles()),
+        # the step above and the review states do not touch the catalog
+        ("catalog", lambda: runner.rebuild_catalog()),
     )
 
 

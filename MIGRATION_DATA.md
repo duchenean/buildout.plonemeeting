@@ -345,6 +345,43 @@ incomplete or a step ran out of order, and the invented `Folder` would
 sit where the real object belongs, so `PMImportContent.create_container`
 only reports it. Grep the log for `No container for`.
 
+**A meeting folder is not a folder.** The items of a user live in
+`Members/<user>/mymeetings/<cfg_id>`, and that folder carries a
+`meeting_config` property, a faceted dashboard, its own permissions,
+constrained types and local roles. None of this is in the JSON: the
+export gives back a plain folder. The property is the one
+`ToolPloneMeeting.getMeetingConfig` reads to know the config an object
+belongs to, so `@@import_pm_meeting_folders` runs between the folders
+step and the content step. Without it every vocabulary of an item reads
+`None` for its config, the item is lost, and the delete that follows the
+loss raises in turn and kills the whole step.
+
+**A transition is an action, the history is the state.** The stock
+import plays the transitions of an object to reach its review state.
+A PloneMeeting transition puts an item in a meeting, writes local roles
+and can send a mail, and a state two transitions away is not reached at
+all (`Could not find workflow to set state to presented`). The state of
+a DCWorkflow is the state of the last entry of the workflow history, and
+`collective.exportimport` writes that history from the export, so
+`PMImportContent.import_review_state` does nothing.
+`@@import_pm_post_process` then gives every object the permissions of
+its state (`portal_workflow.updateRoleMappings`) and puts the state in
+the catalog, index and metadata.
+
+**An add handler has nothing to add.** A handler that runs when an
+object is created works on an object a user just filled in a form. The
+import adds an empty object and writes the fields after, and it holds
+the whole state of the 4.3 object, so the handler computes what the
+import already has, and what it computes can raise: the add handler of a
+`meetingadvice` rebuilds the row id of the advice from the advisers the
+config asks, and a site that ran for ten years holds advices of a group
+the config no longer asks (`KeyError: Not able to find a value to set
+for advice row_id!`). It also sends a mail for an advice given years
+ago. `PMImportContent` sets `importingPloneMeetingContent` on the
+request and the handler stops on it, after the permissions it computes,
+which nothing else does. The exception is fatal: the stock import
+creates the object outside its own `try`, so one advice kills the step.
+
 **The annex cache is built at the end.** `collective.iconifiedcategory`
 rebuilds `categorized_elements` on a container each time an object is
 added in it, and the import adds an object with no field: the annex has
@@ -453,9 +490,11 @@ Fresh site prep, in order (`import_all.py` runs exactly these steps):
    remaps DataGrid row keys (`signatureNumber`, `insertingMethod`) and
    fires `ObjectModifiedEvent` in `finish()` so the derived Plone
    groups / cloned FTIs are (re)created.
-7. Import the **folders** (`folders.json`), then the rest of the
-   **content** (meetings, items, advices, annexes). Folders first: the
-   items of a user live in `Members/<user>/mymeetings/<cfg_id>`. Items
+7. Import the **folders** (`folders.json`), then
+   `@@import_pm_meeting_folders`, then the rest of the **content**
+   (meetings, items, advices, annexes). Folders first: the items of a
+   user live in `Members/<user>/mymeetings/<cfg_id>`, and that folder
+   must know its config before an item lands in it. Items
    import with camelCase→snake_case renames applied;
    `manually_linked_items` is deliberately dropped here.
    `PMImportContent.global_obj_hook` restores the `pm_extra_state` of
@@ -469,13 +508,12 @@ Fresh site prep, in order (`import_all.py` runs exactly these steps):
 9. `@@import_localroles`, `@@import_ordering`, `@@import_defaultpages`,
    `@@import_redirects`.
 10. `@@import_pm_post_process` — re-applies what the JSON cannot carry:
-   every `Members/<user>/mymeetings/<cfg_id>` folder comes back as a plain
-   Folder, so the view re-runs the PloneMeeting folder setup on it
-   (faceted dashboard + `searches_*` sub-folders, `meeting_config`
-   property, permissions, constrained types, MeetingManager local role;
-   `tool.init_meeting_config_folder`) and rebuilds the
-   collective.iconifiedcategory `categorized_elements` cache of every item
-   and meeting (`?skip_categorized_elements=1` to skip that part). The
+   it runs the meeting folder setup again (step 7), gives every object
+   the permissions of its review state and puts that state in the
+   catalog, builds the icon scale and the CSS of every annex type, and
+   rebuilds the collective.iconifiedcategory `categorized_elements`
+   cache of every item and meeting (`?skip_categorized_elements=1` to
+   skip that part). The
    config `searches` folders need nothing: they are recreated by
    `onConfigAdded` when the MeetingConfig is imported, and the 4.3 ones
    are skipped as existing content (keep the default "Skip" option for

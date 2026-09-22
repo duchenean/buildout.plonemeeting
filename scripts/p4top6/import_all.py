@@ -125,6 +125,11 @@ def steps(runner):
         # folders before the content they hold: the items of a user live
         # in Members/<user>/mymeetings/<cfg_id>
         ("folders", lambda: runner.content("folders.json")),
+        # the meeting folder of a user is a plain folder in the export:
+        # the meeting_config property, the dashboard and the permissions
+        # are not in the JSON. The property says which MeetingConfig an
+        # item belongs to, so it must be there before the items are.
+        ("meeting_folders", lambda: runner.plain("import_pm_meeting_folders")),
         ("content", lambda: runner.content("content.json")),
         # the images of an item live in the item: they are in
         # folders.json, which runs before the items exist

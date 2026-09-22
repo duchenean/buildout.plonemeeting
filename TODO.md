@@ -522,8 +522,15 @@ Code: `plonemeeting.core/.../migrations/p4top6/` (import hooks,
 - [x] Circular references — `mappings.DEFERRED_FIELDS` + a deferred
       store on the portal, retried at the end of every import run and
       by `@@import_pm_deferred_fields`.
-- [ ] End-to-end dry run against a real 4.3 export — **in progress**,
-      see MIGRATION_DATA.md "Open points".
+- [ ] End-to-end dry run against a real 4.3 export — **in progress**
+      on a copy of the `delib42` demo instance (13 847 catalog objects,
+      658 of them stale brains). Export: 13 162 objects in
+      `contacts/configs/folders/content.json`, no error. Import: the
+      site, the members, the tool, the registry, the contacts, the
+      7 MeetingConfigs and the folders land; the content step is the one
+      still being worked through. Every defect the run turned up is
+      written up in MIGRATION_DATA.md section 2 — read it before adding
+      a rule, the shape of the fix matters more than the fix.
 
 ### D.7 — Production rollout
 

@@ -228,6 +228,17 @@ role guards, and the Zope system user does not pass them.
 item: it drops the first element and resolves the rest against the new
 site. Pass `PM_EXPORT_TARGET_SITE_ID` on the 4.3 side (section 1).
 
+**A failed item is deleted, and the delete must work.** When
+deserialization raises, `collective.exportimport` calls
+`manage_delObjects` on the half-built object. PloneMeeting reads
+`linked_predecessor_path` on the way out, an attribute the item only has
+when its predecessor link was made in this site, and an unguarded read
+walks the parents up to the `RequestContainer`: the `AttributeError` is
+raised *inside* the except block and takes the whole step down.
+`get_predecessor()` falls back to the UID now. Any such acquisition leak
+turns one bad item into a lost step, so read the traceback of an
+aborted step from the bottom.
+
 **Update mode deletes content.** With `handle_existing_content=2`
 (Update), a deserialization error makes `collective.exportimport` call
 `manage_delObjects` on the item id, which is content that was already
@@ -303,10 +314,22 @@ vocabularies include the stored value. The `{"token": …, "title": …}`
 dict of the export would stay in the field and the next vocabulary that
 reads it fails (`'dict' object has no attribute 'split'`), so every
 `Choice` value is reduced to its token first, against the real schema.
-The `language` of a 4.3 object is the empty token, which Plone 6 does
-not offer: the key is dropped and the site language applies
-(`mappings.DROP_EMPTY_CHOICE_FIELDS`). A `null` on a field Plone 6
-requires is dropped the same way, so the Dexterity default stands.
+An empty Choice means "not set" on the 4.3 side, and the `language` of
+a 4.3 object can be a term the new site does not offer (a site that was
+never multilingual still holds `fr-be`, `en` and the neutral empty
+token): both are dropped when the bound vocabulary does not know them
+(`mappings.DROP_UNKNOWN_CHOICE_FIELDS`), and the site language applies.
+A `null` on a field Plone 6 requires is dropped the same way, so the
+Dexterity default stands.
+
+**Packages that moved.** A MeetingConfig stores the dotted name of the
+interfaces that carry its workflow conditions and actions
+(`Products.MeetingCommunes.interfaces.IMeetingItemCommunesWorkflowConditions`
+and the three others). Only the package moved, the class names are the
+same: `mappings.PACKAGE_RENAMES` rewrites the prefix. Add a line for
+every profile package a pilot site uses — without it the first workflow
+transition of an imported meeting raises
+`ModuleNotFoundError: No module named 'Products.MeetingCommunes'`.
 
 **Blobs before the deserializer.** `collective.exportimport` writes a
 `blob_path` field after deserializing. An invariant that wants a file
@@ -321,6 +344,41 @@ structure a path needs. Here a missing container means the export is
 incomplete or a step ran out of order, and the invented `Folder` would
 sit where the real object belongs, so `PMImportContent.create_container`
 only reports it. Grep the log for `No container for`.
+
+**The annex cache is built at the end.** `collective.iconifiedcategory`
+rebuilds `categorized_elements` on a container each time an object is
+added in it, and the import adds an object with no field: the annex has
+no `content_category` yet and the rebuild raises
+`AttributeError: 'NoneType' object has no attribute 'split'`, which
+kills the whole step. `PMImportContent.start()` sets
+`defer_update_categorized_elements` and
+`defer_categorized_content_created_event` on the request, the same way
+`ToolPloneMeeting.pasteItems` does, and `@@import_pm_post_process`
+builds the cache of every item, meeting and advice that holds an annex.
+This also keeps the annex values of the 4.3 site: the created event
+sets a default `to_print`/`confidential`/`to_sign` from the category.
+
+**An empty value is not a value.** A Choice that the 4.3 site left empty
+is taken out of the data instead of being written as an empty string: an
+empty string stays a value for the AT-compat validators of
+`plonemeeting.restapi`, and the 4.3 sites do have items with no
+category. `plonemeeting.restapi` only runs those validators on the
+fields the payload carries, unless every field is validated
+(`validate_all`), which is what the REST services do.
+
+**A grid keeps its empty strings.** The REST deserializer writes the
+missing value (`None`) for an empty text column of a data grid, the 4.3
+site stored an empty string, and the code that reads a row does
+`row.get(column, '')`. `PMImportContent` puts the empty strings back
+after deserializing (`_restore_grid_strings`). Without it every
+`custom_advisers` row of a MeetingConfig breaks
+`MeetingItem.getAutomaticAdvisersData`, so every item that fires a
+workflow transition at import is lost.
+
+**A JSON float is a Decimal.** `collective.exportimport` reads the JSON
+with `simplejson`, which gives a `Decimal` for every float. The extra
+state holds timestamps, and `DateTime(Decimal(...))` raises, so
+`extra_state.decode` casts them back.
 
 **Deferred fields.** The references are circular: an organization
 carries the advice settings of a MeetingConfig (`item_advice_states`,

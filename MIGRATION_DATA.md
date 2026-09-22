@@ -358,13 +358,28 @@ builds the cache of every item, meeting and advice that holds an annex.
 This also keeps the annex values of the 4.3 site: the created event
 sets a default `to_print`/`confidential`/`to_sign` from the category.
 
-**An empty value is not a value.** A Choice that the 4.3 site left empty
-is taken out of the data instead of being written as an empty string: an
-empty string stays a value for the AT-compat validators of
-`plonemeeting.restapi`, and the 4.3 sites do have items with no
-category. `plonemeeting.restapi` only runs those validators on the
-fields the payload carries, unless every field is validated
-(`validate_all`), which is what the REST services do.
+**An empty value is not a value.** A Choice, or a list of Choice, that
+the 4.3 site left empty is taken out of the data instead of being
+written as an empty string or an empty list: the 4.3 sites do have items
+with no category and no group in charge, and an empty value still runs
+the validator of the field. This holds because the import runs in Skip
+mode; in Update mode a dropped key would leave the stored value.
+
+**The validators are not the reference, the data is.** The AT-compat
+validators of `plonemeeting.restapi` (`validate_<fieldName>`) guard what
+a user types. A site that ran for ten years holds values they refuse —
+an item with an optional adviser that is both delay aware and not, an
+item with no group in charge — and one refused field loses the whole
+object. `PMImportContent` sets `skip_at_compat_validators` on the
+request for the time of the import. The DX schema constraints still
+apply, a vocabulary among them.
+
+**A term the config dropped has a fallback.** A MeetingConfig can stop
+offering a privacy while its items keep it. `mappings.CHOICE_FALLBACKS`
+maps such a value to the one to use instead; a heading privacy falls
+back to its base privacy, so the item stays as closed as it was. Without
+a fallback the object is lost, and dropping the key silently would open
+a closed item.
 
 **A grid keeps its empty strings.** The REST deserializer writes the
 missing value (`None`) for an empty text column of a data grid, the 4.3

@@ -1,0 +1,332 @@
+# imio.helpers @ master 5b387a7
+diff --git a/src/imio/helpers/browser/static/helpers.js b/src/imio/helpers/browser/static/helpers.js
+index 393ee7f..364a4d0 100644
+--- a/src/imio/helpers/browser/static/helpers.js
++++ b/src/imio/helpers/browser/static/helpers.js
+@@ -84,12 +84,9 @@ function toggleDetails(id, toggle_parent_active=true, parent_tag=null, load_view
+   }
+ }
+ 
+-// function that will configure a simple overlay that may be closed whenever clicking outside
++// Information popups. The user can close them with a click outside.
+ function infoOverlays(tag=null) {
+-    $('a.link-overlay-info', tag).prepOverlay({
+-    subtype: 'ajax',
+-    closeselector: '[name="form.buttons.cancel"]',
+-});
++    imio_modal($('a.link-overlay-info', tag), {closeOnBackdrop: true});
+ }
+ // function that will expand a collapsible if asked thru request parameter
+ function expandCollapsible() {
+@@ -192,9 +189,8 @@ $.ajaxTransport("+binary", function (options, originalOptions, jqXHR) {
+ function submitFormHelper(onsuccess=submitFormHelperOnsuccessDefault, onerror=null) {
+     $('input#form-buttons-apply').click(function(event) {
+       event.preventDefault();
+-      // store CKEDITOR instances value into the related textarea widget so it is submitted
+-      textareas = $('textarea.ckeditor_plone', this.form);
+-      textareas.each(function() {this.value = CKEDITOR.instances[this.name].getData();});
++      // store the TinyMCE content into the related textarea widget so it is submitted
++      if (window.tinymce) { tinymce.triggerSave(); }
+       // retrieve form data
+       data = $(this.form).serializeArray();
+       // buttons are not included by serializeArray but we need it
+@@ -269,8 +265,14 @@ function temp_disable_link(tag) {
+     }, 2000);
+ }
+ 
+-// override quickupload _addSelection to select elements in correct order
+-qq.FileUploader.prototype._addSelection = function(files) {
++// override quickupload _addSelection to select elements in correct order.
++// collective.quickupload is optional and its bundle can load after this one,
++// so apply the override when the document is ready.
++$(function() {
++  if (typeof qq === 'undefined') {
++    return;
++  }
++  qq.FileUploader.prototype._addSelection = function(files) {
+         var valid = true;
+         for (var i = 0; i < files.length; i++){
+             if (!this._validateFile(files[i])){
+@@ -283,7 +285,8 @@ qq.FileUploader.prototype._addSelection = function(files) {
+                 this._addFile(files[i]);
+             }
+         }
+-};
++  };
++});
+ 
+ // function that will filter displayed elements from a text input
+ function filterByName(event, selector="span.option") {
+@@ -298,3 +301,138 @@ function filterByName(event, selector="span.option") {
+     }
+   });
+ }
++
++/* Plone 6 modals.
++   imio_modal(elements, options) binds the plone-modal pattern to links.
++   The modal loads the link target with ajax and shows the "#content" part.
++   options:
++   - content: selector of the part to show, default "#content"
++   - submit: how the modal handles the forms it contains:
++       "modal" (default): ajax submit, then close and refresh the page
++       "helper": the page script binds the submit, see submitFormHelper
++       "native": the browser submits the form
++   - redirect: true follows the redirect of a successful submit,
++       false (default) refreshes the current page or the faceted results
++   - closeOnBackdrop: close when the user clicks outside, default false
++   - afterRender(modal, element), shown(modal, element),
++     hidden(modal, element): callbacks
++   - modalOptions: extra plone-modal options */
++function imio_modal_pattern() {
++  var registry = window.__patternslib_registry;
++  return registry ? registry['plone-modal'] : null;
++}
++
++// Refresh the faceted results when there are some, else reload the page.
++function imio_modal_refresh() {
++  if (typeof has_faceted === 'function' && has_faceted()) {
++    Faceted.URLHandler.hash_changed();
++  }
++  else {
++    window.location.href = window.location.href;
++  }
++}
++
++// Return the element that opened the modal that contains element, or null.
++function imio_modal_trigger(element) {
++  var content = $(element).closest('.modal-content');
++  return content.length ? (content.data('imio-modal-trigger') || null) : null;
++}
++
++function imio_modal_options(settings) {
++  var actions = {};
++  actions['[name="form.buttons.cancel"]'] = {modalFunction: 'hide'};
++  var modalOptions = {
++    content: settings.content,
++    actions: actions,
++    automaticallyAddButtonActions: settings.submit === 'modal',
++    backdropOptions: {closeOnEsc: true, closeOnClick: settings.closeOnBackdrop},
++    actionOptions: {
++      displayInModal: false,
++      reloadWindowOnClose: false,
++      redirectOnResponse: settings.redirect,
++      onSuccess: function () {
++        if (!settings.redirect) { imio_modal_refresh(); }
++      }
++    }
++  };
++  return $.extend(true, modalOptions, settings.modalOptions);
++}
++
++function imio_modal_bind_events(modal, element, settings) {
++  $(element).on('after-render.plone-modal.patterns', function () {
++    var content = modal.$modalContent;
++    content.data('imio-modal-trigger', element);
++    // TinyMCE writes its content to the textarea before an ajax submit
++    content[0].addEventListener('click', function (event) {
++      if (window.tinymce && $(event.target).is('[type="submit"]')) {
++        tinymce.triggerSave();
++      }
++    }, true);
++    if (settings.afterRender) { settings.afterRender(modal, element); }
++  });
++  if (settings.shown) {
++    $(element).on('shown.plone-modal.patterns', function () { settings.shown(modal, element); });
++  }
++  if (settings.hidden) {
++    $(element).on('hidden.plone-modal.patterns', function () { settings.hidden(modal, element); });
++  }
++}
++
++var IMIO_MODAL_DEFAULTS = {
++  content: '#content',
++  submit: 'modal',
++  redirect: false,
++  closeOnBackdrop: false,
++  afterRender: null,
++  shown: null,
++  hidden: null,
++  modalOptions: {}
++};
++
++function imio_modal(elements, options) {
++  var Modal = imio_modal_pattern();
++  if (!Modal) { return; }
++  var settings = $.extend({}, IMIO_MODAL_DEFAULTS, options || {});
++  $(elements).each(function () {
++    var element = this;
++    // bind once
++    if (element.imio_modal) { return; }
++    var modal = new Modal(element, imio_modal_options(settings));
++    element.imio_modal = modal;
++    imio_modal_bind_events(modal, element, settings);
++  });
++}
++
++/* Open a modal with the response of a form posted with ajax.
++   The batch actions use it: the form carries the selected uids. */
++function imio_modal_form(form, options) {
++  var Modal = imio_modal_pattern();
++  if (!Modal) { return; }
++  var settings = $.extend({}, IMIO_MODAL_DEFAULTS, {submit: 'helper'}, options || {});
++  var data = $(form).serializeArray();
++  data.push({name: 'ajax_load', value: new Date().getTime()});
++  $.ajax({
++    type: 'POST',
++    url: form.action,
++    data: data,
++    dataType: 'html',
++    cache: false,
++    success: function (html) {
++      // a link without target opens an empty modal that redraw() fills
++      var trigger = document.createElement('a');
++      trigger.href = '#';
++      trigger.style.display = 'none';
++      document.body.appendChild(trigger);
++      var modal = new Modal(trigger, imio_modal_options(settings));
++      imio_modal_bind_events(modal, trigger, settings);
++      $(trigger).on('hidden.plone-modal.patterns', function () { trigger.remove(); });
++      $(trigger).one('after-render.plone-modal.patterns', function () {
++        modal.redraw(html, modal.options);
++      });
++      modal.show();
++    },
++    error: function () {
++      window.location.href = window.location.href;
++    }
++  });
++}
+diff --git a/src/imio/helpers/cache.py b/src/imio/helpers/cache.py
+index 794392d..dcbe7cc 100644
+--- a/src/imio/helpers/cache.py
++++ b/src/imio/helpers/cache.py
+@@ -9,6 +9,7 @@ from plone.memoize import ram
+ from plone.memoize.forever import _memos
+ from plone.memoize.instance import Memojito
+ from plone.memoize.interfaces import ICacheChooser
++from plone.protect.utils import safeWrite
+ from Products.CMFPlone.utils import base_hasattr
+ from types import FunctionType
+ from zope.component import getAllUtilitiesRegisteredFor
+@@ -27,6 +28,16 @@ VOLATILE_ATTR = "_volatile_cache_keys"
+ METHODS_MAPPING_NAME = "_methods_invalidation_mapping"
+ 
+ 
++def mark_safe_write(obj):
++    """Tell plone.protect that a write on p_obj is not a CSRF attack.
++    Cache keys are stored during read requests. Without this mark,
++    plone.protect aborts the transaction and shows the confirm-action page."""
++    # an object that is not yet in the database has no oid.
++    # it is not registered for the CSRF check, so there is nothing to mark.
++    if getattr(obj, "_p_oid", None) is not None:
++        safeWrite(obj)
++
++
+ def cleanVocabularyCacheFor(vocabulary=None):
+     """Clean _memojito_ attribute for given p_vocabulary name.
+     If p_vocabulary is None, it will clean every vocabulary _memojito_ attribute."""
+@@ -76,12 +87,14 @@ def get_cachekey_volatile(name, method=None, ttl=0):
+     if volatiles is None:
+         portal._volatile_cache_keys = PersistentMapping()
+         volatiles = portal._volatile_cache_keys
++        mark_safe_write(portal)
+     date = volatiles.get(volatile_name)
+     now = datetime.now()
+     # compute new date if None or if using ttl and ttl is stale
+     if not date or (ttl and date + timedelta(seconds=ttl) < now):
+         date = now
+         volatiles[volatile_name] = date
++        mark_safe_write(volatiles)
+     # store caller method path so it will be invalidated in invalidate_cachekey_volatile_for
+     if method:
+         key = "%s.%s" % (method.__module__, method.__name__)
+@@ -92,6 +105,8 @@ def get_cachekey_volatile(name, method=None, ttl=0):
+             volatiles[METHODS_MAPPING_NAME][name] = []
+         if key not in volatiles[METHODS_MAPPING_NAME][name]:
+             volatiles[METHODS_MAPPING_NAME][name].append(key)
++        mark_safe_write(volatiles)
++        mark_safe_write(volatiles[METHODS_MAPPING_NAME])
+     return date
+ 
+ 
+@@ -103,6 +118,7 @@ def invalidate_cachekey_volatile_for(name, get_again=False, invalidate_cache=Tru
+     volatiles = getattr(portal, VOLATILE_ATTR, {})
+     if volatile_name in volatiles:
+         del volatiles[volatile_name]
++        mark_safe_write(volatiles)
+     # if get_again=True, when the key is invalidated,
+     # get_cachekey_volatile so it stores a new date and it avoids a second write
+     date = get_cachekey_volatile(volatile_name) if get_again else None
+@@ -115,6 +131,7 @@ def invalidate_cachekey_volatile_for(name, get_again=False, invalidate_cache=Tru
+             for method in mapping[name]:
+                 cleanRamCacheFor(method)
+             mapping.pop(name)
++            mark_safe_write(mapping)
+     return date
+ 
+ 
+@@ -243,7 +260,7 @@ def get_plone_groups_for_user_cachekey(method, user_id=None, user=None, the_obje
+ def get_plone_groups_for_user(user_id=None, user=None, the_objects=False):
+     """Just return user.getGroups but cached.
+     This method is tested in
+-    Products.PloneMeeting.tests.testToolPloneMeeting.test_pm_Get_plone_groups_for_user."""
++    plonemeeting.core.tests.testToolPloneMeeting.test_pm_Get_plone_groups_for_user."""
+     if api.user.is_anonymous():
+         return []
+     if user is None:
+diff --git a/src/imio/helpers/content.py b/src/imio/helpers/content.py
+index a2a0436..4d28bdf 100644
+--- a/src/imio/helpers/content.py
++++ b/src/imio/helpers/content.py
+@@ -260,7 +260,10 @@ def validate_fields(obj, behaviors=True, raise_on_errors=False):
+     fields = get_schema_fields(obj=obj, behaviors=True)
+     errors = []
+     for (field_name, field) in fields:
+-        field = field.bind(obj)
++        try:
++            field = field.bind(obj)
++        except Exception:
++            continue
+         value = getattr(obj, field_name)
+         # accept None for most of fields if required=False
+         if value is None and not field.required and not (isinstance(field, (Bool,))):
+diff --git a/src/imio/helpers/xhtml.py b/src/imio/helpers/xhtml.py
+index 3a56920..c8c4341 100644
+--- a/src/imio/helpers/xhtml.py
++++ b/src/imio/helpers/xhtml.py
+@@ -74,14 +74,13 @@ def xhtmlContentIsEmpty(xhtmlContent, tagWithAttributeIsNotEmpty=True):
+     be considered not empty."""
+ 
+     # first check if xhtmlContent is not simply None or so
+-    if six.PY3:
+-        isStr = isinstance(xhtmlContent, str) or isinstance(xhtmlContent, type(None))
+-    else:
+-        isStr = isinstance(xhtmlContent, bytes) or isinstance(xhtmlContent, type(None))
++    isStr = isinstance(xhtmlContent, (str, bytes)) or isinstance(xhtmlContent, type(None))
+     if isStr and (not xhtmlContent or not xhtmlContent.strip()):
+         return True
+ 
+     if isStr:
++        if isinstance(xhtmlContent, bytes):
++            xhtmlContent = xhtmlContent.decode('utf-8', errors='replace')
+         xhtmlContent = "<special_tag>%s</special_tag>" % xhtmlContent
+         tree = lxml.html.fromstring(safe_unicode(xhtmlContent))
+     else:
+@@ -566,6 +565,8 @@ def storeImagesLocally(
+ 
+         filename = imageObj.getId()
+         if HAS_PLONE_6_AND_MORE:
++            if not imageObj.image:
++                return None, None
+             data = imageObj.image.data
+         else:
+             # In Plone4 python 2.x : imageObj is <ATImage at /plone/dot.gif>
+@@ -682,7 +683,7 @@ def storeImagesLocally(
+             if handled:
+                 if replace_not_found_image:
+                     filename = "imageNotFound.jpg"
+-                    f = open(os.path.join(os.path.dirname(__file__), filename), "r")
++                    f = open(os.path.join(os.path.dirname(__file__), filename), "rb")
+                     data = f.read()
+                     f.close()
+                 else:

@@ -111,7 +111,11 @@ Two related concerns:
   transitive deps)
 
 > Note: `collective.quickupload` is *kept* — `imio.annex` still uses it
-> for its annex upload widget.
+> for its annex upload widget. On Plone 6 (2.0.0a1+) its settings live in
+> the registry: the `_configureQuickupload` values are now records in
+> `plonemeeting.core/profiles/default/registry.xml`, and `imio.annex`
+> declares the profile dependency. Decided 2026-09-21 to keep it rather
+> than port the widget to mockup `pat-upload` (no per-file metadata form).
 
 **What it did**
 
@@ -258,7 +262,7 @@ zero direct Python imports inside the codebase.
 Audit found no in-tree Python references to `communesplone.layout`.
 If a downstream visual regression appears after this drop (missing
 viewlet, CSS, profile action), inline the specific feature into
-either `plonemeeting.portal` or `plonetheme.imioapps`. Otherwise,
+either `plonemeeting.core` or `plonetheme.imioapps`. Otherwise,
 drop the package permanently.
 
 **Commented call-sites in `Products.PloneMeeting`**

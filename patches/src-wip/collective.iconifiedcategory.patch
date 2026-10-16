@@ -1,0 +1,14 @@
+# collective.iconifiedcategory @ python3 7eac5f4
+diff --git a/src/collective/iconifiedcategory/browser/templates/categorized-childs-infos.pt b/src/collective/iconifiedcategory/browser/templates/categorized-childs-infos.pt
+index cb65995..5d160ca 100644
+--- a/src/collective/iconifiedcategory/browser/templates/categorized-childs-infos.pt
++++ b/src/collective/iconifiedcategory/browser/templates/categorized-childs-infos.pt
+@@ -18,7 +18,7 @@
+               tal:condition="python: element['preview_status'] == 'in_progress'">
+           <img width="16px"
+                height="16px"
+-               tal:attributes="src string:${portal_url}/spinner_small.gif" /><!-- MIGRATION-PLONE6 -->
++               tal:attributes="src string:${portal_url}/++plone++bootstrap-icons/arrow-repeat.svg" /><!-- MIGRATION-PLONE6 -->
+         </span>
+         <span class="help"
+               title="The document conversion failed"

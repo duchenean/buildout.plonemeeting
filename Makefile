@@ -23,7 +23,7 @@ help:  ## Displays this help
 
 install-requirements:
 	rm -f .installed.cfg .mr.developer.cfg
-	virtualenv -p python2 .
+	python3.12 -m venv .
 	bin/python bin/pip install -r requirements.txt
 	# initialize CUSTOM_TMP directory
 	mkdir -p -m 777 /tmp/appy
@@ -51,10 +51,20 @@ cleanall:  ## Clears build artefacts and virtualenv
 	if test -f var/instance1.pid; then kill -15 $(shell cat var/instance1.pid) || true;fi
 	rm -fr bin include lib local share develop-eggs downloads eggs parts .installed.cfg .mr.developer.cfg .git/hooks/pre-commit var/tmp
 
+.PHONY: uno-venv
+uno-venv:  ## Builds var/uno-venv: python with uno + appy for the POD converter (port.cfg python-uno)
+	/usr/bin/python3 -m venv --system-site-packages var/uno-venv
+	var/uno-venv/bin/pip install appy==$(shell grep '^appy' versions.cfg | cut -d= -f2 | tr -d ' ')
+
 .PHONY: libreoffice-local
 libreoffice-local:  ## Starts a LibreOffice server daemon process using locally installed LibreOffice
 	soffice '--accept=socket,host=localhost,port=2002;urp;StarOffice.ServiceManager' --nologo --headless --nofirststartwizard --norestore
 
+# NB: the appy converter (var/uno-venv, see uno-venv target) speaks URP
+# with the python-uno bindings of the HOST LibreOffice. If the host LO
+# major version differs from the server's (this docker image is LO 7.3),
+# loadComponentFromURL dies with "Binary URP bridge disposed" — use
+# `make libreoffice-local` instead (host soffice, matching versions).
 .PHONY: libreoffice
 libreoffice:  ## Start a LibreOffice server on port 2002
 	make start-libreoffice

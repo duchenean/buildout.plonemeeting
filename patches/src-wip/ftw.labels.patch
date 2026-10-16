@@ -1,0 +1,196 @@
+# ftw.labels @ master ec2e74e
+diff --git a/ftw/labels/browser/labeling.py b/ftw/labels/browser/labeling.py
+index 0a27db1..748139f 100644
+--- a/ftw/labels/browser/labeling.py
++++ b/ftw/labels/browser/labeling.py
+@@ -1,7 +1,7 @@
++import json
++
+ from Products.Five.browser import BrowserView
+ from ftw.labels.interfaces import ILabeling
+-from z3c.json.interfaces import IJSONWriter
+-from zope.component import getUtility
+ 
+ 
+ class Labeling(BrowserView):
+@@ -26,9 +26,8 @@ class Labeling(BrowserView):
+         activate = not eval(activate)
+         ret = labeling.pers_update([label_id], activate)
+         self.context.reindexObject(idxs=['labels'])
+-        writer = getUtility(IJSONWriter)
+         self.request.response.setHeader('content-type', 'application/json')
+-        return writer.write({'ret': (ret and 'ok' or 'nok'), 'new_status': str(activate)})
++        return json.dumps({'ret': (ret and 'ok' or 'nok'), 'new_status': str(activate)})
+ 
+     def _redirect(self):
+         response = self.request.RESPONSE
+diff --git a/ftw/labels/browser/resources/ftw-labels.js b/ftw/labels/browser/resources/ftw-labels.js
+index 6ad217f..9fabf3f 100644
+--- a/ftw/labels/browser/resources/ftw-labels.js
++++ b/ftw/labels/browser/resources/ftw-labels.js
+@@ -50,11 +50,7 @@ $(document).ready(function(){
+     tabbedview.reload_view();
+   });
+ 
+-  $('.labelListing .editLabelLink').prepOverlay({
+-    subtype: 'ajax',
+-    width: '235px',
+-    noform: function(el) {return $.plonepopups.noformerrorshow(el, 'close');}
+-  });
++  imio_modal('.labelListing .editLabelLink');
+ 
+   $('.pers-edit-1').click(function(){
+     var $label = $(this)
+diff --git a/ftw/labels/configure.zcml b/ftw/labels/configure.zcml
+index a14fc79..004a7ec 100644
+--- a/ftw/labels/configure.zcml
++++ b/ftw/labels/configure.zcml
+@@ -5,8 +5,6 @@
+     xmlns:zcml="http://namespaces.zope.org/zcml"
+     i18n_domain="ftw.labels">
+ 
+-    <include package="z3c.json" />
+-
+     <five:registerPackage package="." initialize=".initialize" />
+     <i18n:registerTranslations directory="locales" />
+ 
+diff --git a/ftw/labels/jar.py b/ftw/labels/jar.py
+index 68bedc8..ac5c109 100644
+--- a/ftw/labels/jar.py
++++ b/ftw/labels/jar.py
+@@ -8,19 +8,17 @@ from persistent.mapping import PersistentMapping
+ from plone.i18n.normalizer.interfaces import IIDNormalizer
+ from zope.annotation.interfaces import IAnnotations
+ from zope.component import adapter
+-from zope.component import adapts
+ from zope.component import getUtility
+ from zope.interface import implementer
+-from zope.interface import implements
+ from zope.interface import Interface
+ 
+ 
+ ANNOTATION_KEY = 'ftw.labels:jar'
+ 
+ 
++@implementer(ILabelJar)
++@adapter(ILabelRoot)
+ class LabelJar(object):
+-    implements(ILabelJar)
+-    adapts(ILabelRoot)
+ 
+     def __init__(self, context):
+         self.context = context
+diff --git a/ftw/labels/labeling.py b/ftw/labels/labeling.py
+index aba698b..e43845d 100644
+--- a/ftw/labels/labeling.py
++++ b/ftw/labels/labeling.py
+@@ -6,16 +6,16 @@ from persistent.list import PersistentList
+ from persistent.mapping import PersistentMapping
+ from plone import api
+ from zope.annotation.interfaces import IAnnotations
+-from zope.component import adapts
+-from zope.interface import implements
++from zope.component import adapter
++from zope.interface import implementer
+ 
+ 
+ ANNOTATION_KEY = 'ftw.labels:labeling'
+ 
+ 
++@implementer(ILabeling)
++@adapter(ILabelSupport)
+ class Labeling(object):
+-    implements(ILabeling)
+-    adapts(ILabelSupport)
+ 
+     def __init__(self, context):
+         self.context = context
+@@ -24,7 +24,7 @@ class Labeling(object):
+     def update(self, label_ids):
+         jar_keys = self.jar.storage.keys()
+         # removes deselected labels
+-        for label_id in self.storage.keys():  # use keys to avoid RuntimeError: dictionary changed size during iteration
++        for label_id in list(self.storage.keys()):  # copy keys to avoid RuntimeError on Py3
+             if label_id not in jar_keys:
+                 continue  # do we remove key ??
+             label = self.jar.get(label_id)
+diff --git a/ftw/labels/portlets/assignments.py b/ftw/labels/portlets/assignments.py
+index 774d554..5b3fe80 100644
+--- a/ftw/labels/portlets/assignments.py
++++ b/ftw/labels/portlets/assignments.py
+@@ -1,19 +1,19 @@
+ from ftw.labels.portlets.interfaces import ILabelJarPortlet
+ from ftw.labels.portlets.interfaces import ILabelingPortlet
+ from plone.app.portlets.portlets.base import Assignment
+-from zope.interface import implements
++from zope.interface import implementer
+ 
+ 
++@implementer(ILabelJarPortlet)
+ class LabelJarAssignment(Assignment):
+-    implements(ILabelJarPortlet)
+ 
+     @property
+     def title(self):
+         return 'ftw.labels: Label Jar Portlet'
+ 
+ 
++@implementer(ILabelingPortlet)
+ class LabelingAssignment(Assignment):
+-    implements(ILabelingPortlet)
+ 
+     @property
+     def title(self):
+diff --git a/ftw/labels/profiles/default/registry.xml b/ftw/labels/profiles/default/registry.xml
+new file mode 100644
+index 0000000..9fb6030
+--- /dev/null
++++ b/ftw/labels/profiles/default/registry.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0"?>
++<registry>
++
++<!-- Plone 6 loads scripts and styles from these bundle records. -->
++  <records prefix="plone.bundles/ftw-labels-select2"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">plone</value>
++    <value key="jscompilation">++resource++ftw.labels/select2.min.js</value>
++    <value key="csscompilation">++resource++ftw.labels/select2.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++  <records prefix="plone.bundles/ftw-labels"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">ftw-labels-select2</value>
++    <value key="jscompilation">++resource++ftw.labels/ftw-labels.js</value>
++    <value key="csscompilation">++resource++ftw.labels/ftw-labels.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
+diff --git a/ftw/labels/utils.py b/ftw/labels/utils.py
+index b66ca88..738c42b 100644
+--- a/ftw/labels/utils.py
++++ b/ftw/labels/utils.py
+@@ -5,15 +5,11 @@ def make_sortable(text):
+     """Converts a string to a sortable string by lowercasing
+     it and removing diacritics.
+     """
+-    if isinstance(text, str):
+-        text = text.decode('utf-8')
+-    if not isinstance(text, unicode):
++    if not isinstance(text, str):
+         return text
+     text = text.lower()
+     normalized = unicodedata.normalize('NFKD', text)
+-    text = u''.join([c for c in normalized if not unicodedata.combining(c)])
+-    text = text.encode('utf-8')
+-    return text
++    return u''.join([c for c in normalized if not unicodedata.combining(c)])
+ 
+ 
+ def title_by_user(title, by_label):

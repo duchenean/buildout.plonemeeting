@@ -1,0 +1,14 @@
+# plone.directives.form @ master 803a99e
+diff --git a/plone/directives/form/value.py b/plone/directives/form/value.py
+index 2b4061d..741446a 100644
+--- a/plone/directives/form/value.py
++++ b/plone/directives/form/value.py
+@@ -24,7 +24,7 @@ class _computed_value(object):
+                     **self.discriminators),
+                 self.name,
+             )
+-        except ValueError, e:
++        except ValueError as e:
+             raise ValueError(
+                 u"Error constructing value adapter for %s: %s" %
+                 (str(ob), str(e),))

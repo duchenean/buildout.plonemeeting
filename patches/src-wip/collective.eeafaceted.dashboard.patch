@@ -1,0 +1,203 @@
+# collective.eeafaceted.dashboard @ plone6 00876b9
+diff --git a/src/collective/eeafaceted/dashboard/browser/configure.zcml b/src/collective/eeafaceted/dashboard/browser/configure.zcml
+index 6bd456f..1b34fb9 100644
+--- a/src/collective/eeafaceted/dashboard/browser/configure.zcml
++++ b/src/collective/eeafaceted/dashboard/browser/configure.zcml
+@@ -40,7 +40,7 @@
+     <!-- collective.eeafaceted.z3ctable -->
+     <configure package="collective.eeafaceted.z3ctable">
+         <browser:view
+-            for="Products.ATContentTypes.interfaces.folder.IATFolder"
++            for="plone.dexterity.interfaces.IDexterityContainer"
+             name="faceted-table-view"
+             class="collective.eeafaceted.dashboard.browser.overrides.DashboardFacetedTableView"
+             permission="zope2.View"
+@@ -58,12 +58,6 @@
+             class="collective.eeafaceted.dashboard.browser.overrides.DashboardFacetedTableView"
+             permission="zope2.View"
+         />
+-        <browser:view
+-            for="plone.dexterity.interfaces.IDexterityContainer"
+-            name="faceted-table-view"
+-            class="collective.eeafaceted.dashboard.browser.overrides.DashboardFacetedTableView"
+-            permission="zope2.View"
+-        />
+     </configure>
+ 
+     <!-- collective.eeafaceted.collectionwidget -->
+diff --git a/src/collective/eeafaceted/dashboard/browser/views.py b/src/collective/eeafaceted/dashboard/browser/views.py
+index a43a3ab..441b48f 100644
+--- a/src/collective/eeafaceted/dashboard/browser/views.py
++++ b/src/collective/eeafaceted/dashboard/browser/views.py
+@@ -7,6 +7,7 @@ from collective.eeafaceted.dashboard.config import CURRENT_CRITERION
+ from collective.eeafaceted.dashboard.interfaces import ICountableTab
+ from eea.facetednavigation.subtypes.interfaces import IFacetedNavigable
+ from plone import api
++from Products.CMFPlone.utils import get_installer
+ from Products.Five.browser import BrowserView
+ from zope.globalrequest import getRequest
+ 
+@@ -23,10 +24,9 @@ class RenderTermPortletView(BaseRenderTermView):
+         self.term = term
+         self.category = category
+         self.widget = widget
+-        pqi = api.portal.get_tool('portal_quickinstaller')
+-        if pqi.isProductInstalled('collective.querynextprev'):
++        if get_installer(self.context, self.request).is_product_installed('collective.querynextprev'):
+             session = self.request.get('SESSION', {})
+-            if session.has_key(CURRENT_CRITERION):  # noqa
++            if CURRENT_CRITERION in session:
+                 self.selected_term = session[CURRENT_CRITERION]
+ 
+         return self.index()
+@@ -53,7 +53,7 @@ class JSONCollectionsCount(BrowserView):
+             voc = widget._generate_vocabulary()
+             info = []
+             portal = api.portal.get()
+-            for category in voc.itervalues():
++            for category in voc.values():
+                 for term in category['collections']:
+                     collection = portal.unrestrictedTraverse(term.value)
+                     if IDashboardCollection.providedBy(collection) \
+@@ -61,8 +61,8 @@ class JSONCollectionsCount(BrowserView):
+                         view = collection.unrestrictedTraverse(
+                             '@@render_collection_widget_term_portlet')
+                         info.append({
++                            'count': view.number_of_items(),
+                             'uid': term.token,
+-                            'count': view.number_of_items()
+                         })
+             res = {'criterionId': data.__name__,
+                    'countByCollection': info}
+diff --git a/src/collective/eeafaceted/dashboard/profiles.zcml b/src/collective/eeafaceted/dashboard/profiles.zcml
+index 55d64dd..8314d2a 100644
+--- a/src/collective/eeafaceted/dashboard/profiles.zcml
++++ b/src/collective/eeafaceted/dashboard/profiles.zcml
+@@ -6,20 +6,30 @@
+     i18n_domain="collective.eeafaceted.dashboard">
+ 
+     <genericsetup:registerProfile
+-        zcml:condition="have plone-5"
++        zcml:condition="have plone-60"
+         name="default"
+-        directory="profiles/plone5"
+-        title="collective.eeafaceted.dashboard"
+-        description="Extension profile for collective.eeafaceted.dashboard."
+-        provides="Products.GenericSetup.interfaces.EXTENSION" />
+-  
+-    <genericsetup:registerProfile
+-        zcml:condition="not-have plone-5"
+-        name="default"
+-        directory="profiles/plone4"
++        directory="profiles/plone6"
+         title="collective.eeafaceted.dashboard"
+         description="Extension profile for collective.eeafaceted.dashboard."
+         provides="Products.GenericSetup.interfaces.EXTENSION" />
++
++    <configure zcml:condition="not-have plone-60">
++        <genericsetup:registerProfile
++            zcml:condition="have plone-5"
++            name="default"
++            directory="profiles/plone5"
++            title="collective.eeafaceted.dashboard"
++            description="Extension profile for collective.eeafaceted.dashboard."
++            provides="Products.GenericSetup.interfaces.EXTENSION" />
++
++        <genericsetup:registerProfile
++            zcml:condition="not-have plone-5"
++            name="default"
++            directory="profiles/plone4"
++            title="collective.eeafaceted.dashboard"
++            description="Extension profile for collective.eeafaceted.dashboard."
++            provides="Products.GenericSetup.interfaces.EXTENSION" />
++    </configure>
+   
+     <genericsetup:registerProfile
+         name="universal"
+@@ -42,4 +52,15 @@
+         handler=".setuphandlers.post_install">
+     </genericsetup:importStep>
+ 
++    <genericsetup:upgradeSteps
++        zcml:condition="have plone-60"
++        source="1"
++        destination="2"
++        profile="collective.eeafaceted.dashboard:default">
++        <genericsetup:upgradeDepends
++            title="Register the Plone 6 bundles"
++            description=""
++            import_steps="plone.app.registry" />
++    </genericsetup:upgradeSteps>
++
+ </configure>
+diff --git a/src/collective/eeafaceted/dashboard/profiles/plone6/faceteddashboard_marker.txt b/src/collective/eeafaceted/dashboard/profiles/plone6/faceteddashboard_marker.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/src/collective/eeafaceted/dashboard/profiles/plone6/metadata.xml b/src/collective/eeafaceted/dashboard/profiles/plone6/metadata.xml
+new file mode 100644
+index 0000000..caa0a08
+--- /dev/null
++++ b/src/collective/eeafaceted/dashboard/profiles/plone6/metadata.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0"?>
++<metadata>
++  <version>2</version>
++  <dependencies>
++    <dependency>profile-collective.eeafaceted.dashboard:universal</dependency>
++  </dependencies>
++</metadata>
+diff --git a/src/collective/eeafaceted/dashboard/profiles/plone6/registry.xml b/src/collective/eeafaceted/dashboard/profiles/plone6/registry.xml
+new file mode 100644
+index 0000000..a4a4a46
+--- /dev/null
++++ b/src/collective/eeafaceted/dashboard/profiles/plone6/registry.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0"?>
++<registry>
++
++  <!-- Plone 6 loads scripts and styles from these bundle records.
++       The dashboard script uses Faceted and the z3ctable script. -->
++  <records prefix="plone.bundles/faceted-dashboard"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">faceted.view,faceted-z3ctable</value>
++    <value key="jscompilation">++resource++collective.eeafaceted.dashboard/collective.eeafaceted.dashboard.js</value>
++    <value key="csscompilation">++resource++collective.eeafaceted.dashboard/collective.eeafaceted.dashboard.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
+diff --git a/src/collective/eeafaceted/dashboard/utils.py b/src/collective/eeafaceted/dashboard/utils.py
+index da8fcf9..6c818de 100644
+--- a/src/collective/eeafaceted/dashboard/utils.py
++++ b/src/collective/eeafaceted/dashboard/utils.py
+@@ -6,8 +6,10 @@ from eea.facetednavigation.criteria.interfaces import ICriteria
+ from eea.facetednavigation.interfaces import IHidePloneLeftColumn
+ from eea.facetednavigation.layout.interfaces import IFacetedLayout
+ from eea.facetednavigation.subtypes.interfaces import IFacetedNavigable
++from eea.facetednavigation.subtypes.interfaces import IPossibleFacetedNavigable
+ from os import path
+ from plone import api
++from zope.interface import alsoProvides
+ from zope.interface import noLongerProvides
+ 
+ import json
+@@ -55,6 +57,8 @@ def _enableFacetedDashboardFor(obj,
+     response_status = obj.REQUEST.RESPONSE.getStatus()
+     response_location = obj.REQUEST.RESPONSE.getHeader('location')
+     if enable_faceted:
++        if not IPossibleFacetedNavigable.providedBy(obj):
++            alsoProvides(obj, IPossibleFacetedNavigable)
+         obj.unrestrictedTraverse('@@faceted_subtyper').enable()
+ 
+     if update_layout:
+@@ -66,7 +70,7 @@ def _enableFacetedDashboardFor(obj,
+     # import configuration
+     if xmlpath:
+         obj.unrestrictedTraverse('@@faceted_exportimport').import_xml(
+-            import_file=open(xmlpath))
++            import_file=open(xmlpath, 'rb'))
+     # define default collection UID
+     if default_UID:
+         _updateDefaultCollectionFor(obj, default_UID)

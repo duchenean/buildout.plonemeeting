@@ -1,0 +1,88 @@
+# collective.elephantvocabulary @ master 9abd7dd
+diff --git a/collective/elephantvocabulary/base.py b/collective/elephantvocabulary/base.py
+index 738b5f9..a2c34c6 100644
+--- a/collective/elephantvocabulary/base.py
++++ b/collective/elephantvocabulary/base.py
+@@ -1,15 +1,14 @@
+ 
+-from zope.interface import implements
++from zope.interface import implementer
+ from collective.elephantvocabulary.interfaces import IElephantVocabulary
+ from zope.schema.interfaces import ISource
+ from zope.schema.interfaces import IIterableSource
+ from zope.schema.interfaces import IVocabulary
+ 
+ 
++@implementer(IElephantVocabulary, IVocabulary, ISource, IIterableSource)
+ class WrapperBase(object):
+ 
+-    implements(IElephantVocabulary, IVocabulary, ISource, IIterableSource)
+-
+     def __init__(self, vocab, visible_terms, hidden_terms):
+         self.vocab = vocab
+         self.visible_terms = visible_terms
+diff --git a/collective/elephantvocabulary/testing.py b/collective/elephantvocabulary/testing.py
+index 6362a93..25e266d 100644
+--- a/collective/elephantvocabulary/testing.py
++++ b/collective/elephantvocabulary/testing.py
+@@ -1,5 +1,5 @@
+ 
+-from zope.interface import implements
++from zope.interface import implementer
+ from zope.component import provideUtility
+ from zope.schema.vocabulary import getVocabularyRegistry
+ from zope.schema.vocabulary import SimpleVocabulary
+@@ -14,15 +14,15 @@ from plone.testing import Layer
+ from plone.testing.zca import LAYER_CLEANUP
+ 
+ 
++@implementer(ISource)
+ class ExampleSource(SimpleVocabulary):
+-    implements(ISource)
+ 
+     def search(self):
+         return [SimpleTerm(1), SimpleTerm(2)]
+ 
+ 
++@implementer(IVocabularyFactory)
+ class ExampleVocabFactory(SimpleVocabulary):
+-    implements(IVocabularyFactory)
+ 
+     def __init__(self, context):
+         super(ExampleVocabFactory, self).__init__([
+diff --git a/collective/elephantvocabulary/vocabulary.py b/collective/elephantvocabulary/vocabulary.py
+index 44a8702..d8c2de5 100644
+--- a/collective/elephantvocabulary/vocabulary.py
++++ b/collective/elephantvocabulary/vocabulary.py
+@@ -1,4 +1,4 @@
+-from zope.interface import implements
++from zope.interface import implementer
+ from zope.component import getUtility
+ from zope.schema.vocabulary import getVocabularyRegistry
+ from zope.schema.interfaces import IVocabularyFactory
+@@ -9,14 +9,13 @@ from collective.elephantvocabulary.base import WrapperBase
+ try:
+     from plone.registry.interfaces import IRegistry
+     PLONE_REGISTRY = True
+-except:
++except Exception:
+     PLONE_REGISTRY = False
+ 
+ 
++@implementer(IVocabularyFactory, IContextSourceBinder)
+ class VocabularyFactory(object):
+ 
+-    implements(IVocabularyFactory, IContextSourceBinder)
+-
+     def __init__(self, vocab,
+                  visible_terms=None,
+                  visible_terms_from_registry=None,
+@@ -36,7 +35,7 @@ class VocabularyFactory(object):
+ 
+     def __call__(self, context):
+ 
+-        if isinstance(self.vocab, basestring):
++        if isinstance(self.vocab, str):
+             original_vocab = getVocabularyRegistry().get(context, self.vocab)
+         else:
+             original_vocab = self.vocab

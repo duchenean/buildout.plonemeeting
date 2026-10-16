@@ -1,0 +1,81 @@
+# imio.dashboard @ python3 b1c1f0f
+diff --git a/src/imio/dashboard/browser/static/imio.dashboard.js b/src/imio/dashboard/browser/static/imio.dashboard.js
+index ad34743..cc2a3eb 100644
+--- a/src/imio/dashboard/browser/static/imio.dashboard.js
++++ b/src/imio/dashboard/browser/static/imio.dashboard.js
+@@ -4,10 +4,7 @@ $(document).ready(function () {
+ });
+ 
+ 
+-/* initialize overlays of portlet used for dahboards displaying contacts */
++/* initialize the popups of the portlet used for dashboards displaying contacts */
+ $(document).ready(function(){
+-  $('.add_contact_overlay').prepOverlay({
+-      subtype: 'ajax',
+-      closeselector: '[name="form.buttons.cancel"]'
+-  });
++  imio_modal('.add_contact_overlay');
+ });
+diff --git a/src/imio/dashboard/profiles/default/registry.xml b/src/imio/dashboard/profiles/default/registry.xml
+new file mode 100644
+index 0000000..ff6e610
+--- /dev/null
++++ b/src/imio/dashboard/profiles/default/registry.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0"?>
++<registry>
++
++<!-- Plone 6 loads scripts and styles from these bundle records. -->
++  <records prefix="plone.bundles/imio-dashboard"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">faceted.view,imio-helpers</value>
++    <value key="jscompilation">++resource++imio.dashboard/imio.dashboard.js</value>
++    <value key="csscompilation"></value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
+diff --git a/src/imio/dashboard/setuphandlers.py b/src/imio/dashboard/setuphandlers.py
+index 71c7ff5..90df8dc 100644
+--- a/src/imio/dashboard/setuphandlers.py
++++ b/src/imio/dashboard/setuphandlers.py
+@@ -5,6 +5,7 @@ from imio.dashboard import logger
+ from imio.dashboard.interfaces import IContactsDashboard
+ from imio.helpers.workflow import get_transitions
+ from plone import api
++from Products.CMFPlone.interfaces.constrains import ISelectableConstrainTypes
+ from Products.CMFPlone.utils import base_hasattr
+ from zope.component import queryUtility
+ from zope.i18n.interfaces import ITranslationDomain
+@@ -25,8 +26,8 @@ def post_install(context):
+ 
+ def _(msgid, domain='imio.dashboard'):
+     translation_domain = queryUtility(ITranslationDomain, domain)
+-    sp = api.portal.get().portal_properties.site_properties
+-    return translation_domain.translate(msgid, target_language=sp.getProperty('default_language', 'fr'))
++    default_language = api.portal.get_registry_record('plone.default_language', default='fr')
++    return translation_domain.translate(msgid, target_language=default_language)
+ 
+ 
+ def _add_db_col_folder(folder, id, title, displayed='', markers=[]):
+@@ -35,9 +36,15 @@ def _add_db_col_folder(folder, id, title, displayed='', markers=[]):
+ 
+     folder.invokeFactory('Folder', id=id, title=title, rights=displayed)
+     col_folder = folder[id]
+-    col_folder.setConstrainTypesMode(1)
+-    col_folder.setLocallyAllowedTypes(['DashboardCollection'])
+-    col_folder.setImmediatelyAddableTypes(['DashboardCollection'])
++    constrains = ISelectableConstrainTypes(col_folder, None)
++    if constrains is not None:
++        constrains.setConstrainTypesMode(1)
++        constrains.setLocallyAllowedTypes(['DashboardCollection'])
++        constrains.setImmediatelyAddableTypes(['DashboardCollection'])
++    else:
++        col_folder.setConstrainTypesMode(1)
++        col_folder.setLocallyAllowedTypes(['DashboardCollection'])
++        col_folder.setImmediatelyAddableTypes(['DashboardCollection'])
+     wfTool = api.portal.get_tool('portal_workflow')
+     if "show_internally" in get_transitions(col_folder):
+         wfTool.doActionFor(col_folder, "show_internally")

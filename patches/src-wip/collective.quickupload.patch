@@ -1,0 +1,40 @@
+# collective.quickupload @ master e52e88c
+diff --git a/collective/quickupload/browser/quick_upload.py b/collective/quickupload/browser/quick_upload.py
+index 5e12c9e..45d30ae 100644
+--- a/collective/quickupload/browser/quick_upload.py
++++ b/collective/quickupload/browser/quick_upload.py
+@@ -5,6 +5,7 @@ from AccessControl import SecurityManagement
+ from Acquisition import aq_inner, aq_parent
+ from Products.CMFCore.permissions import ModifyPortalContent
+ from Products.CMFCore.utils import getToolByName
++from Products.CMFPlone.utils import pretty_title_or_id
+ from Products.Five.browser import BrowserView
+ from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
+ from Products.Sessions.SessionDataManager import SessionDataManagerErr
+@@ -188,7 +189,7 @@ class QuickUploadView(BrowserView):
+     def header_upload(self):
+         request = self.request
+         try:
+-            session = request.get('SESSION', {})
++            session = request.get('SESSION') or {}
+             medialabel = session.get(
+                 'mediaupload',
+                 request.get('mediaupload', 'files')
+@@ -442,7 +443,7 @@ class QuickUploadInit(BrowserView):
+         context = aq_inner(self.context)
+         request = self.request
+         try:
+-            session = request.get('SESSION', {})
++            session = request.get('SESSION') or {}
+             mediaupload = session.get(
+                 'mediaupload', request.get('mediaupload', ''))
+             typeupload = session.get(
+@@ -800,7 +801,7 @@ class QuickUploadFile(QuickUploadAuthenticate):
+             u'success': True,
+             u'uid': IUUID(obj) if HAS_UUID else obj.UID(),
+             u'name': obj.getId(),
+-            u'title': obj.pretty_title_or_id()
++            u'title': pretty_title_or_id(obj, obj)
+         })
+ 
+     def _check_file_size(self, data):

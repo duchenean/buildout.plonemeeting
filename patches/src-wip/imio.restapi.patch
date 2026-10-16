@@ -1,0 +1,135 @@
+# imio.restapi @ plone6 dfc00e6
+diff --git a/src/imio/restapi/__init__.py b/src/imio/restapi/__init__.py
+index 73ba9f4..746d3a2 100644
+--- a/src/imio/restapi/__init__.py
++++ b/src/imio/restapi/__init__.py
+@@ -29,7 +29,10 @@ def render(self):
+         self.__name__,
+         self.request.get('ACTUAL_URL'),
+         query_string and " query_string={0}".format(query_string) or '')
+-    fplog("restapi_call", extras=extras)
++    try:
++        fplog("restapi_call", extras=extras)
++    except Exception:
++        pass
+ 
+     # debug may be enabled by passing debug=true as parameter to the restapi call
+     # or when setting the RESTAPI_DEBUG environment variable
+diff --git a/src/imio/restapi/serializer/base.py b/src/imio/restapi/serializer/base.py
+index 92543a7..e0738cd 100644
+--- a/src/imio/restapi/serializer/base.py
++++ b/src/imio/restapi/serializer/base.py
+@@ -74,8 +74,12 @@ class DefaultJSONSummarySerializer(summary.DefaultJSONSummarySerializer):
+             fields_cache = self.request.get("_summary_fields_cache", None)
+             if fields_cache is None:
+                 catalog = getToolByName(self.context, "portal_catalog")
+-                fields_cache = set(catalog.schema()) | NON_METADATA_ATTRIBUTES
++                # MIGRATION-PLONE6: NON_METADATA_ATTRIBUTES module constant was
++                # replaced by the instance attribute set in __init__
++                fields_cache = set(catalog.schema()) | self.non_metadata_attributes
+                 self.request.set("_summary_fields_cache", fields_cache)
+             additional_metadata_fields = fields_cache
+ 
+-        return DEFAULT_METADATA_FIELDS | additional_metadata_fields
++        # MIGRATION-PLONE6: DEFAULT_METADATA_FIELDS module constant was
++        # replaced by the instance attribute set in __init__
++        return self.default_metadata_fields | additional_metadata_fields
+diff --git a/src/imio/restapi/services/add.py b/src/imio/restapi/services/add.py
+index 0b9d722..6d0c365 100644
+--- a/src/imio/restapi/services/add.py
++++ b/src/imio/restapi/services/add.py
+@@ -10,8 +10,16 @@ from plone.restapi.interfaces import IDeserializeFromJson
+ from plone.restapi.interfaces import ISerializeToJson
+ from plone.restapi.interfaces import ISerializeToJsonSummary
+ from plone.restapi.services.content.add import FolderPost
+-# from plone.restapi.services.content.add import PAM_INSTALLED  # MIGRATION-PLONE6
+-# from plone.restapi.services.content.add import PLONE5  # MIGRATION-PLONE6
++# MIGRATION-PLONE6: PAM_INSTALLED / PLONE5 flags were removed from
++# plone.restapi.services.content.add, compute PAM availability locally
++try:
++    import plone.app.multilingual  # noqa
++
++    PAM_INSTALLED = True
++except ImportError:
++    PAM_INSTALLED = False
++# Plone 5 specific code path is never taken on Plone 6
++PLONE5 = False
+ from plone.restapi.services.content.utils import add
+ from plone.restapi.services.content.utils import create
+ from Products.CMFPlone.utils import safe_hasattr
+diff --git a/src/imio/restapi/services/infos.py b/src/imio/restapi/services/infos.py
+index 7ce8a8a..ff58000 100644
+--- a/src/imio/restapi/services/infos.py
++++ b/src/imio/restapi/services/infos.py
+@@ -63,15 +63,20 @@ class InfosGet(Service):
+     def _stats_database(self):
+         # soft dependency
+         from imio.pyutils.system import error
+-        from Products.CPUtils.Extensions.utils import tobytes
+ 
+         # zope
++        # MIGRATION-PLONE6: the Control_Panel Database entries were removed
++        # from Zope 5, get the database sizes from the ZODB multi-databases
+         database = {"fs_sz": 0, "bl_sz": 0}
+         app = self.context.restrictedTraverse("/")
+-        dbs = app["Control_Panel"]["Database"]
+-        for db in dbs.getDatabaseNames():
+-            readable_size = dbs[db].db_size()
+-            size = int(tobytes(readable_size[:-1] + " " + readable_size[-1:] + "B"))
++        databases = getattr(app._p_jar.db(), "databases", None) or \
++            {"main": app._p_jar.db()}
++        for db in databases.values():
++            try:
++                size = int(db.getSize() or 0)
++            except (TypeError, ValueError):
++                # some storages return a human readable string
++                continue
+             # keep only largest
+             if size > database["fs_sz"]:
+                 database["fs_sz"] = size
+@@ -116,9 +121,12 @@ class InfosGet(Service):
+ 
+     def _packages(self):
+         """ """
++        # MIGRATION-PLONE6: plone.api.env.get_distribution was removed
++        # (pkg_resources deprecation), use importlib.metadata
++        from importlib.metadata import version as get_version
+         packages = {}
+         for package_name in self._packages_names():
+-            version = api.env.get_distribution(package_name)._version
++            version = get_version(package_name)
+             packages[package_name] = version
+         return packages
+ 
+diff --git a/src/imio/restapi/utils.py b/src/imio/restapi/utils.py
+index 134b6ff..3c47759 100644
+--- a/src/imio/restapi/utils.py
++++ b/src/imio/restapi/utils.py
+@@ -42,10 +42,14 @@ def get_return_fullobject_after_creation_default():
+ 
+ def is_debug_mode_enabled():
+     """ Return the debug_mode defined in instance config """
+-    return boolean_value(os.getenv("RESTAPI_DEBUG", False)) or \
+-        api.portal.get_registry_record(
+-        'imio.restapi.settings.interfaces.ISettings.debug_mode'
+-    )
++    if boolean_value(os.getenv("RESTAPI_DEBUG", False)):
++        return True
++    try:
++        return api.portal.get_registry_record(
++            'imio.restapi.settings.interfaces.ISettings.debug_mode'
++        )
++    except Exception:
++        return False
+ 
+ 
+ def get_authentication(request):
+@@ -142,7 +146,7 @@ def serialize_term(tokens, vocab):
+        This is useful when it is not a real field and we can not use a FieldSerializer."""
+     res = []
+     only_one = False
+-    if isinstance(tokens, basestring):
++    if isinstance(tokens, str):
+         only_one = True
+         tokens = [tokens]
+     for token in tokens:

@@ -1,0 +1,61 @@
+# collective.eeafaceted.batchactions @ python3 43d1f7c
+diff --git a/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js b/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js
+index 0b7f202..806b1b2 100644
+--- a/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js
++++ b/src/collective/eeafaceted/batchactions/browser/static/batch_actions.js
+@@ -38,16 +38,10 @@ collective_batch_actions.init_button = function () {
+ };
+ 
+ collective_batch_actions.initializeOverlays = function (ba_form) {
+-    // Add batch actions popup
+-    $(ba_form).prepOverlay({
+-        api: true,
+-        subtype: 'ajax',
+-        closeselector: '[name="form.buttons.cancel"]',
+-        config: {
+-            onBeforeLoad : function (e) {
+-                submitFormHelper(this.form);
+-                return true;
+-            },
++    // Open the batch action form in a popup, submitFormHelper submits it
++    imio_modal_form(ba_form, {
++        afterRender: function (modal, trigger) {
++            submitFormHelper();
+         }
+     });
+ };
+diff --git a/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt b/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt
+index 40eaf01..e69b2c0 100644
+--- a/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt
++++ b/src/collective/eeafaceted/batchactions/browser/templates/batch_actions_viewlet.pt
+@@ -4,7 +4,7 @@
+      tal:condition="view/available">
+   <form method="POST"
+         tal:repeat="batch_action view/get_batch_actions"
+-        tal:attributes="action batch_action/name;
++        tal:attributes="action string:${context/absolute_url}/${batch_action/name};
+                         id batch_action/name;
+                         class python: not batch_action['overlay'] and 'batch-action-form' or 'batch-action-form do-overlay'"
+         >
+diff --git a/src/collective/eeafaceted/batchactions/profiles.zcml b/src/collective/eeafaceted/batchactions/profiles.zcml
+index 8b77e95..e98b74d 100644
+--- a/src/collective/eeafaceted/batchactions/profiles.zcml
++++ b/src/collective/eeafaceted/batchactions/profiles.zcml
+@@ -22,7 +22,7 @@
+       description="Extension profile for collective.eeafaceted.batchactions."
+       provides="Products.GenericSetup.interfaces.EXTENSION"
+       directory="profiles/plone6"
+-      zcml:condition="have plone-6"
++      zcml:condition="have plone-60"
+       />
+ 
+   <genericsetup:registerProfile
+@@ -31,7 +31,7 @@
+       description="collective.eeafaceted.batchactions"
+       provides="Products.GenericSetup.interfaces.EXTENSION"
+       directory="profiles/uninstall"
+-      zcml:condition="have plone-6"
++      zcml:condition="have plone-60"
+       />
+ 
+ </configure>

@@ -1,0 +1,161 @@
+# collective.eeafaceted.collectionwidget @ python3 5f13807
+diff --git a/src/collective/eeafaceted/collectionwidget/profiles.zcml b/src/collective/eeafaceted/collectionwidget/profiles.zcml
+index b66e251..7d8895c 100644
+--- a/src/collective/eeafaceted/collectionwidget/profiles.zcml
++++ b/src/collective/eeafaceted/collectionwidget/profiles.zcml
+@@ -6,20 +6,30 @@
+     i18n_domain="collective.eeafaceted.collectionwidget">
+ 
+     <genericsetup:registerProfile
+-        zcml:condition="have plone-5"
++        zcml:condition="have plone-60"
+         name="default"
+-        directory="profiles/plone5"
++        directory="profiles/plone6"
+         title="collective.eeafaceted.collectionwidget"
+         description="Extension profile for collective.eeafaceted.collectionwidget."
+         provides="Products.GenericSetup.interfaces.EXTENSION" />
+ 
+-    <genericsetup:registerProfile
+-        zcml:condition="not-have plone-5"
+-        name="default"
+-        directory="profiles/plone4"
+-        title="collective.eeafaceted.collectionwidget"
+-        description="Extension profile for collective.eeafaceted.collectionwidget."
+-        provides="Products.GenericSetup.interfaces.EXTENSION" />
++    <configure zcml:condition="not-have plone-60">
++        <genericsetup:registerProfile
++            zcml:condition="have plone-5"
++            name="default"
++            directory="profiles/plone5"
++            title="collective.eeafaceted.collectionwidget"
++            description="Extension profile for collective.eeafaceted.collectionwidget."
++            provides="Products.GenericSetup.interfaces.EXTENSION" />
++
++        <genericsetup:registerProfile
++            zcml:condition="not-have plone-5"
++            name="default"
++            directory="profiles/plone4"
++            title="collective.eeafaceted.collectionwidget"
++            description="Extension profile for collective.eeafaceted.collectionwidget."
++            provides="Products.GenericSetup.interfaces.EXTENSION" />
++    </configure>
+ 
+     <genericsetup:registerProfile
+         name="universal"
+@@ -66,4 +76,15 @@
+         handler="collective.eeafaceted.collectionwidget.upgrades.upgrade_to_3"
+         profile="collective.eeafaceted.collectionwidget:default" />
+ 
++    <genericsetup:upgradeSteps
++        zcml:condition="have plone-60"
++        source="3"
++        destination="4"
++        profile="collective.eeafaceted.collectionwidget:default">
++        <genericsetup:upgradeDepends
++            title="Register the Plone 6 bundles"
++            description=""
++            import_steps="plone.app.registry" />
++    </genericsetup:upgradeSteps>
++
+ </configure>
+diff --git a/src/collective/eeafaceted/collectionwidget/profiles/plone6/collectiveeeafacetedcollectionwidget_marker.txt b/src/collective/eeafaceted/collectionwidget/profiles/plone6/collectiveeeafacetedcollectionwidget_marker.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/src/collective/eeafaceted/collectionwidget/profiles/plone6/metadata.xml b/src/collective/eeafaceted/collectionwidget/profiles/plone6/metadata.xml
+new file mode 100644
+index 0000000..a00f99f
+--- /dev/null
++++ b/src/collective/eeafaceted/collectionwidget/profiles/plone6/metadata.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0"?>
++<metadata>
++  <version>4</version>
++  <dependencies>
++    <dependency>profile-collective.eeafaceted.collectionwidget:universal</dependency>
++  </dependencies>
++</metadata>
+diff --git a/src/collective/eeafaceted/collectionwidget/profiles/plone6/registry.xml b/src/collective/eeafaceted/collectionwidget/profiles/plone6/registry.xml
+new file mode 100644
+index 0000000..e886d0c
+--- /dev/null
++++ b/src/collective/eeafaceted/collectionwidget/profiles/plone6/registry.xml
+@@ -0,0 +1,37 @@
++<?xml version="1.0"?>
++<registry>
++
++  <!-- Plone 6 loads scripts and styles from these bundle records. -->
++  <records prefix="plone.bundles/faceted-collectionwidget"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">plone</value>
++    <value key="jscompilation"></value>
++    <value key="csscompilation">++resource++collective.eeafaceted.collectionwidget/collective.eeafaceted.collectionwidget.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++  <!-- The collection widget view script registers the widget in Faceted.Widgets.
++       It must load after the faceted view script. -->
++  <records prefix="plone.bundles/faceted-collectionwidget-view"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">faceted.view</value>
++    <value key="jscompilation">++resource++collective.eeafaceted.collectionwidget.widgets.view.js</value>
++    <value key="csscompilation">++resource++collective.eeafaceted.collectionwidget.view.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++  <records prefix="plone.bundles/faceted-collectionwidget-edit"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">faceted.edit</value>
++    <value key="jscompilation">++resource++collective.eeafaceted.collectionwidget.widgets.edit.js</value>
++    <value key="csscompilation">++resource++collective.eeafaceted.collectionwidget.edit.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
+diff --git a/src/collective/eeafaceted/collectionwidget/utils.py b/src/collective/eeafaceted/collectionwidget/utils.py
+index d8654bd..abe7e01 100644
+--- a/src/collective/eeafaceted/collectionwidget/utils.py
++++ b/src/collective/eeafaceted/collectionwidget/utils.py
+@@ -68,7 +68,7 @@ def getCurrentCollection(faceted_context, caching=True):
+         if not collectionUID and criterion.default:
+             collectionUID = criterion.default
+         if collectionUID:
+-            if base_hasattr(collectionUID, "__iter__"):
++            if isinstance(collectionUID, (list, tuple)):
+                 collectionUID = collectionUID[0]
+             collection = uuidToObject(collectionUID, unrestricted=True)
+         if caching and collection:
+diff --git a/src/collective/eeafaceted/collectionwidget/widgets/view.js b/src/collective/eeafaceted/collectionwidget/widgets/view.js
+index 7f08775..457740e 100644
+--- a/src/collective/eeafaceted/collectionwidget/widgets/view.js
++++ b/src/collective/eeafaceted/collectionwidget/widgets/view.js
+@@ -146,7 +146,8 @@ showRelevantAdvancedCriteria = function(tag) {
+ }
+ 
+ updatePageTitle = function(tag) {
+-  var currentTitleTag = $('#content h1.documentFirstHeading');
++  /* Plone 4 gives the page title a class, Plone 6 renders a bare h1. */
++  var currentTitleTag = $('#content h1.documentFirstHeading, #content > header > h1').first();
+   if (currentTitleTag.hasClass('dontupdate')) {
+       return;
+   }
+@@ -183,8 +184,8 @@ Faceted.initializeTagsCloudCollectionWidget = function(evt){
+   });
+ };
+ 
+-jQuery(document).ready(function(){
+-  jQuery(Faceted.Events).bind(
+-    Faceted.Events.INITIALIZE,
+-    Faceted.initializeTagsCloudCollectionWidget);
+-});
++// eea.facetednavigation fires INITIALIZE from its own document-ready
++// handler. Bind now, a later ready handler misses the event.
++jQuery(Faceted.Events).on(
++  Faceted.Events.INITIALIZE,
++  Faceted.initializeTagsCloudCollectionWidget);

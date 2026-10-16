@@ -1,0 +1,22 @@
+# plonetheme.imioapps @ python3 ad66bf7
+diff --git a/src/plonetheme/imioapps/profiles/default/registry.xml b/src/plonetheme/imioapps/profiles/default/registry.xml
+index 49a825f..385201f 100644
+--- a/src/plonetheme/imioapps/profiles/default/registry.xml
++++ b/src/plonetheme/imioapps/profiles/default/registry.xml
+@@ -1,16 +1,4 @@
+ <registry>
+-  <record interface="Products.ResourceRegistries.interfaces.settings.IResourceRegistriesSettings"
+-          field="resourceBundlesForThemes">
+-    <value purge="true">
+-      <element key="(default)" purge="true">
+-        <element>jquery</element>
+-        <element>default</element>
+-        <element>jqueryui</element>
+-        <element>faceted-view</element>
+-        <element>faceted-edit</element>
+-      </element>
+-    </value>
+-  </record>
+   <records interface="plonetheme.imioapps.interfaces.IPlonethemeImioappsSettings">
+   </records>
+ </registry>

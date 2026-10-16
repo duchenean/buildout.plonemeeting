@@ -1,0 +1,223 @@
+# collective.z3cform.select2 @ master 5ce3cbb
+diff --git a/src/collective/z3cform/select2/browser/configure.zcml b/src/collective/z3cform/select2/browser/configure.zcml
+index 7c50107..2904cad 100644
+--- a/src/collective/z3cform/select2/browser/configure.zcml
++++ b/src/collective/z3cform/select2/browser/configure.zcml
+@@ -15,6 +15,9 @@
+     layer="collective.z3cform.select2.interfaces.ICollectiveZ3CformSelect2Layer"
+     />
+ 
+-  <faceted:widget factory=".select2widget.Widget" />
++  <faceted:widget
++      factory=".select2widget.Widget"
++      schema=".select2widget.ISelect2Schema"
++      />
+ 
+ </configure>
+diff --git a/src/collective/z3cform/select2/browser/select2widget.py b/src/collective/z3cform/select2/browser/select2widget.py
+index 6613112..000e837 100644
+--- a/src/collective/z3cform/select2/browser/select2widget.py
++++ b/src/collective/z3cform/select2/browser/select2widget.py
+@@ -1,10 +1,18 @@
+ # -*- coding: utf-8 -*-
+ from eea.facetednavigation.widgets import ViewPageTemplateFile
++from eea.facetednavigation.widgets.select.interfaces import ISelectSchema
+ from eea.facetednavigation.widgets.select.widget import Widget as SelectWidget
+-from eea.faceted.vocabularies.utils import compare
+-
++from zope.interface import Interface
+ from zope.i18n import MessageFactory
+ 
++
++class ISelect2Schema(ISelectSchema):
++    """Marker schema for the select2 faceted widget."""
++
++
++def compare(a, b):
++    return (a.lower() > b.lower()) - (a.lower() < b.lower())
++
+ _ = MessageFactory('collective.z3cform.select2')
+ 
+ 
+diff --git a/src/collective/z3cform/select2/browser/templates/select2-view.js b/src/collective/z3cform/select2/browser/templates/select2-view.js
+index 99526a2..c36503e 100644
+--- a/src/collective/z3cform/select2/browser/templates/select2-view.js
++++ b/src/collective/z3cform/select2/browser/templates/select2-view.js
+@@ -300,10 +300,10 @@ if (typeof(Faceted) != 'undefined') {
+     });
+   };
+ 
+-  jQuery(document).ready(function(){
+-    jQuery(Faceted.Events).bind(
+-      Faceted.Events.INITIALIZE,
+-      Faceted.initializeSelect2Widget);
+-  });
++  // eea.facetednavigation fires INITIALIZE from its own document-ready
++  // handler. Bind now, a later ready handler misses the event.
++  jQuery(Faceted.Events).on(
++    Faceted.Events.INITIALIZE,
++    Faceted.initializeSelect2Widget);
+ 
+ }
+diff --git a/src/collective/z3cform/select2/minimal.zcml b/src/collective/z3cform/select2/minimal.zcml
+index d485e83..180fdf5 100644
+--- a/src/collective/z3cform/select2/minimal.zcml
++++ b/src/collective/z3cform/select2/minimal.zcml
+@@ -3,6 +3,7 @@
+     xmlns:five="http://namespaces.zope.org/five"
+     xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+     xmlns:i18n="http://namespaces.zope.org/i18n"
++    xmlns:zcml="http://namespaces.zope.org/zcml"
+     i18n_domain="collective.z3cform.select2">
+ 
+   <i18n:registerTranslations directory="locales" />
+@@ -10,12 +11,13 @@
+   <include package="z3c.form" file="meta.zcml" />
+   <include package="z3c.form" />
+   <include package="eea.facetednavigation" />
+-  <include package="eea.jquery" />
++  <include package="eea.jquery" zcml:condition="not-have plone-60" />
+ 
+   <include package=".browser" />
+   <include package=".widget" />
+ 
+   <genericsetup:registerProfile
++      zcml:condition="not-have plone-60"
+       name="default"
+       title="collective.z3cform.select2"
+       directory="profiles/default"
+@@ -23,4 +25,13 @@
+       provides="Products.GenericSetup.interfaces.EXTENSION"
+       />
+ 
++  <genericsetup:registerProfile
++      zcml:condition="have plone-60"
++      name="default"
++      title="collective.z3cform.select2"
++      directory="profiles/plone6"
++      description="Installs the collective.z3cform.select2 add-on."
++      provides="Products.GenericSetup.interfaces.EXTENSION"
++      />
++
+ </configure>
+diff --git a/src/collective/z3cform/select2/profiles/plone6/browserlayer.xml b/src/collective/z3cform/select2/profiles/plone6/browserlayer.xml
+new file mode 100644
+index 0000000..f359896
+--- /dev/null
++++ b/src/collective/z3cform/select2/profiles/plone6/browserlayer.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0"?>
++<layers>
++  <layer
++      name="collective.z3cform.select2"
++      interface="collective.z3cform.select2.interfaces.ICollectiveZ3CformSelect2Layer"
++      />
++</layers>
+diff --git a/src/collective/z3cform/select2/profiles/plone6/collectivez3cformselect2_default.txt b/src/collective/z3cform/select2/profiles/plone6/collectivez3cformselect2_default.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/src/collective/z3cform/select2/profiles/plone6/metadata.xml b/src/collective/z3cform/select2/profiles/plone6/metadata.xml
+new file mode 100644
+index 0000000..b22370d
+--- /dev/null
++++ b/src/collective/z3cform/select2/profiles/plone6/metadata.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0"?>
++<metadata>
++  <version>1000</version>
++</metadata>
+diff --git a/src/collective/z3cform/select2/profiles/plone6/registry.xml b/src/collective/z3cform/select2/profiles/plone6/registry.xml
+new file mode 100644
+index 0000000..fdc082d
+--- /dev/null
++++ b/src/collective/z3cform/select2/profiles/plone6/registry.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0"?>
++<registry>
++
++<!-- Plone 6 loads scripts and styles from these bundle records.
++     The select2 library comes from the ftw.labels bundle. -->
++  <records prefix="plone.bundles/select2-widget"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">ftw-labels-select2</value>
++    <value key="jscompilation">++resource++select2-widget/select2-widget.js</value>
++    <value key="csscompilation">++resource++select2-widget/select2-widget.css</value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++  <records prefix="plone.bundles/faceted-select2-view"
++           interface="Products.CMFPlone.interfaces.IBundleRegistry">
++    <value key="enabled">True</value>
++    <value key="depends">faceted.view,select2-widget</value>
++    <value key="jscompilation">++resource++faceted.select2.view.js</value>
++    <value key="csscompilation"></value>
++    <value key="load_defer">False</value>
++    <value key="load_async">False</value>
++  </records>
++
++</registry>
+diff --git a/src/collective/z3cform/select2/widget/widget.py b/src/collective/z3cform/select2/widget/widget.py
+index 278cecd..5d12edc 100644
+--- a/src/collective/z3cform/select2/widget/widget.py
++++ b/src/collective/z3cform/select2/widget/widget.py
+@@ -1,5 +1,5 @@
+ # -*- coding: utf-8 -*-
+-from zope.interface import Interface, implements, implementer
++from zope.interface import Interface, implementer
+ from zope.component import adapter
+ import zope.schema.interfaces
+ 
+@@ -12,8 +12,8 @@ class ITaxonomySelect2Widget(Interface):
+     """ Marker interface for the taxonomy select widget """
+ 
+ 
++@implementer(ITaxonomySelect2Widget, interfaces.ISelectWidget)
+ class TaxonomySelect2Widget(SelectWidget):
+-    implements(ITaxonomySelect2Widget, interfaces.ISelectWidget)
+ 
+     noValueToken = ''
+     size = 5
+@@ -30,8 +30,8 @@ class ISingleSelect2Widget(Interface):
+     """Marker interface for single select widget"""
+ 
+ 
++@implementer(ISingleSelect2Widget, interfaces.ISelectWidget)
+ class SingleSelect2Widget(SelectWidget):
+-    implements(ISingleSelect2Widget, interfaces.ISelectWidget)
+     klass = u'single-select2-widget'
+ 
+     @property
+@@ -42,8 +42,9 @@ class SingleSelect2Widget(SelectWidget):
+     def select2_id(self):
+         return self.id.replace('-', '_')
+ 
++    @property
+     def items(self):
+-        items = super(SingleSelect2Widget, self).items()
++        items = list(super(SingleSelect2Widget, self).items)
+         for item in items:
+             css = ''
+             css_id = item.get('value').split('_-_')
+@@ -60,3 +61,21 @@ class SingleSelect2Widget(SelectWidget):
+ def SingleSelect2FieldWidget(field, request):
+     """IFieldWidget factory for SingleSelect2Widget"""
+     return FieldWidget(field, SingleSelect2Widget(request))
++
++
++class IMultiSelect2Widget(Interface):
++    """Marker interface for multi select widget"""
++
++
++@implementer(IMultiSelect2Widget, interfaces.ISelectWidget)
++class MultiSelect2Widget(SelectWidget):
++    klass = u'multi-select2-widget'
++    multiple = 'multiple'
++    size = 5
++
++
++@adapter(zope.schema.interfaces.IList, interfaces.IFormLayer)
++@implementer(interfaces.IFieldWidget)
++def MultiSelect2FieldWidget(field, request):
++    """IFieldWidget factory for MultiSelect2Widget"""
++    return FieldWidget(field, MultiSelect2Widget(request))

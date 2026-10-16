@@ -1,0 +1,168 @@
+# imio.zamqp.pm @ master ceded6f
+diff --git a/setup.py b/setup.py
+index 905ff2e..5b5f64d 100644
+--- a/setup.py
++++ b/setup.py
+@@ -40,9 +40,9 @@ setup(
+         'imio.actionspanel',
+         'imio.helpers[pdf]',
+         'imio.zamqp.core',
+-        'Products.PloneMeeting',
++        'plonemeeting.core',
+     ],
+-    extras_require={'test': ['Products.PloneMeeting[test]']},
++    extras_require={'test': ['plonemeeting.core[test]']},
+     entry_points="""
+     [z3c.autoinclude.plugin]
+     target = plone
+diff --git a/src/imio/zamqp/pm/browser/configure.zcml b/src/imio/zamqp/pm/browser/configure.zcml
+index a758be7..f285325 100644
+--- a/src/imio/zamqp/pm/browser/configure.zcml
++++ b/src/imio/zamqp/pm/browser/configure.zcml
+@@ -10,7 +10,7 @@
+ 
+     <!-- document-generation view -->
+     <browser:page
+-        for="Products.PloneMeeting.interfaces.IMeetingContent"
++        for="plonemeeting.core.interfaces.IMeetingContent"
+         name="document-generation"
+         class=".overrides.AMQPPMDocumentGenerationView"
+         permission="zope2.View" />
+@@ -23,7 +23,7 @@
+ 
+     <!-- insert-barcode batch action -->
+     <browser:page
+-        for="Products.PloneMeeting.interfaces.IMeetingContentBatchActionsMarker"
++        for="plonemeeting.core.interfaces.IMeetingContentBatchActionsMarker"
+         name="insert-barcode-batch-action"
+         class=".views.InsertBarcodeBatchActionForm"
+         permission="zope2.View" />
+diff --git a/src/imio/zamqp/pm/browser/overrides.py b/src/imio/zamqp/pm/browser/overrides.py
+index 08e9221..c2542f9 100644
+--- a/src/imio/zamqp/pm/browser/overrides.py
++++ b/src/imio/zamqp/pm/browser/overrides.py
+@@ -9,7 +9,7 @@
+ 
+ from imio.zamqp.core import utils as zamqp_utils
+ from plone import api
+-from Products.PloneMeeting.browser.overrides import PMDocumentGenerationView
++from plonemeeting.core.browser.overrides import PMDocumentGenerationView
+ 
+ 
+ class AMQPPMDocumentGenerationView(PMDocumentGenerationView):
+diff --git a/src/imio/zamqp/pm/browser/views.py b/src/imio/zamqp/pm/browser/views.py
+index b5a980e..decc1bc 100644
+--- a/src/imio/zamqp/pm/browser/views.py
++++ b/src/imio/zamqp/pm/browser/views.py
+@@ -17,9 +17,9 @@ from Products.CMFCore.permissions import ModifyPortalContent
+ from Products.CMFCore.utils import _checkPermission
+ from Products.CMFPlone.utils import safe_unicode
+ from Products.Five import BrowserView
+-from Products.PloneMeeting.utils import is_proposing_group_editor
+-from Products.PloneMeeting.utils import notifyModifiedAndReindex
+-from Products.PloneMeeting.utils import version_object
++from plonemeeting.core.utils import is_proposing_group_editor
++from plonemeeting.core.utils import notifyModifiedAndReindex
++from plonemeeting.core.utils import version_object
+ from PyPDF2.utils import PdfReadError
+ from zope.i18n import translate
+ 
+diff --git a/src/imio/zamqp/pm/consumer.py b/src/imio/zamqp/pm/consumer.py
+index e7620ab..40ce0ee 100644
+--- a/src/imio/zamqp/pm/consumer.py
++++ b/src/imio/zamqp/pm/consumer.py
+@@ -9,7 +9,7 @@ from imio.zamqp.core.consumer import consume
+ from imio.zamqp.core.consumer import DMSMainFile
+ from imio.zamqp.pm import interfaces
+ from plone import api
+-from Products.PloneMeeting.utils import version_object
++from plonemeeting.core.utils import version_object
+ from zope.event import notify
+ from zope.lifecycleevent import ObjectModifiedEvent
+ 
+diff --git a/src/imio/zamqp/pm/overrides.py b/src/imio/zamqp/pm/overrides.py
+index 6cc076f..93aa596 100644
+--- a/src/imio/zamqp/pm/overrides.py
++++ b/src/imio/zamqp/pm/overrides.py
+@@ -1,6 +1,6 @@
+ # -*- coding: utf-8 -*-
+ 
+-from Products.PloneMeeting.adapters import PMAnnexPrettyLinkAdapter
++from plonemeeting.core.adapters import PMAnnexPrettyLinkAdapter
+ from zope.i18n import translate
+ 
+ 
+diff --git a/src/imio/zamqp/pm/profiles/testing/metadata.xml b/src/imio/zamqp/pm/profiles/testing/metadata.xml
+index df665f0..82b5a36 100644
+--- a/src/imio/zamqp/pm/profiles/testing/metadata.xml
++++ b/src/imio/zamqp/pm/profiles/testing/metadata.xml
+@@ -3,6 +3,6 @@
+   <version>test</version>
+   <dependencies>
+     <dependency>profile-imio.zamqp.pm:default</dependency>
+-    <dependency>profile-Products.PloneMeeting:testing</dependency>
++    <dependency>profile-plonemeeting.core:testing</dependency>
+   </dependencies>
+ </metadata>
+diff --git a/src/imio/zamqp/pm/testing.py b/src/imio/zamqp/pm/testing.py
+index f6e814c..c2f9e24 100644
+--- a/src/imio/zamqp/pm/testing.py
++++ b/src/imio/zamqp/pm/testing.py
+@@ -11,7 +11,7 @@ from plone.app.testing import FunctionalTesting
+ from plone.app.testing import IntegrationTesting
+ from plone.testing import z2
+ from plone.testing import zca
+-from Products.PloneMeeting.testing import PMLayer
++from plonemeeting.core.testing import PMLayer
+ 
+ import imio.zamqp.pm
+ 
+@@ -45,8 +45,7 @@ AMQP_PM_TESTING_PROFILE = ImioZamqpPMLayer(
+     zcml_filename="testing.zcml",
+     zcml_package=imio.zamqp.pm,
+     additional_z2_products=['imio.dashboard',
+-                            'Products.PloneMeeting',
+-                            'Products.PasswordStrength',
++                            'plonemeeting.core',
+                             'Products.CMFPlacefulWorkflow'],
+     gs_profile_id='imio.zamqp.pm:testing',
+     name="AMQP_PM_TESTING_PROFILE")
+diff --git a/src/imio/zamqp/pm/tests/base.py b/src/imio/zamqp/pm/tests/base.py
+index 7cbe881..3e2aaa2 100644
+--- a/src/imio/zamqp/pm/tests/base.py
++++ b/src/imio/zamqp/pm/tests/base.py
+@@ -1,7 +1,7 @@
+ # -*- coding: utf-8 -*-
+ 
+ from imio.zamqp.pm import testing
+-from Products.PloneMeeting.tests.PloneMeetingTestCase import PloneMeetingTestCase
++from plonemeeting.core.tests.PloneMeetingTestCase import PloneMeetingTestCase
+ 
+ 
+ DEFAULT_SCAN_ID = u'013999900000001'
+diff --git a/src/imio/zamqp/pm/tests/test_overrides.py b/src/imio/zamqp/pm/tests/test_overrides.py
+index 536386c..a4c33a2 100644
+--- a/src/imio/zamqp/pm/tests/test_overrides.py
++++ b/src/imio/zamqp/pm/tests/test_overrides.py
+@@ -2,7 +2,7 @@
+ 
+ from imio.zamqp.pm.tests.base import BaseTestCase
+ from imio.zamqp.pm.tests.base import DEFAULT_SCAN_ID
+-from Products.PloneMeeting.utils import get_annexes
++from plonemeeting.core.utils import get_annexes
+ 
+ 
+ class TestOverrides(BaseTestCase):
+diff --git a/src/imio/zamqp/pm/tests/test_views.py b/src/imio/zamqp/pm/tests/test_views.py
+index 5b274ad..d6fcac4 100644
+--- a/src/imio/zamqp/pm/tests/test_views.py
++++ b/src/imio/zamqp/pm/tests/test_views.py
+@@ -8,7 +8,7 @@ from imio.zamqp.pm.tests.base import DEFAULT_SCAN_ID
+ from imio.zamqp.pm.utils import next_scan_id_pm
+ from plone import api
+ from Products.CMFCore.permissions import ModifyPortalContent
+-from Products.PloneMeeting.utils import cleanMemoize
++from plonemeeting.core.utils import cleanMemoize
+ from Products.statusmessages.interfaces import IStatusMessage
+ from zope.event import notify
+ from zope.i18n import translate

@@ -1,0 +1,33 @@
+# dexterity.localrolesfield @ master 08d217c
+diff --git a/src/dexterity/localrolesfield/utils.py b/src/dexterity/localrolesfield/utils.py
+index 8dd0027..ec4f6b0 100644
+--- a/src/dexterity/localrolesfield/utils.py
++++ b/src/dexterity/localrolesfield/utils.py
+@@ -3,7 +3,7 @@
+ # from plone.memoize.ram import cache
+ from dexterity.localrolesfield.interfaces import IBaseLocalRoleField
+ from plone.behavior.interfaces import IBehavior
+-from zope.component import getUtility
++from zope.component import queryUtility
+ 
+ 
+ def cache_key(fun, fti):
+@@ -17,12 +17,16 @@ def get_localrole_fields(fti):
+     Lookup local role(s) fields on content from its schema and its behaviors.
+     Return field name and field object for each found field.
+     """
++    if fti is None:
++        return []
+     fti_schema = fti.lookupSchema()
+     fields = [(n, f) for n, f in fti_schema.namesAndDescriptions(all=True) if IBaseLocalRoleField.providedBy(f)]
+ 
+     # also lookup behaviors
+     for behavior_id in fti.behaviors:
+-        behavior = getUtility(IBehavior, behavior_id).interface
+-        fields.extend([(n, f) for n, f in behavior.namesAndDescriptions(all=True) if IBaseLocalRoleField.providedBy(f)])
++        behavior = queryUtility(IBehavior, behavior_id)
++        if behavior is None:
++            continue
++        fields.extend([(n, f) for n, f in behavior.interface.namesAndDescriptions(all=True) if IBaseLocalRoleField.providedBy(f)])
+ 
+     return fields
